@@ -18,8 +18,16 @@ install packages :
 pip install -r requirements.txt
 ````
 
+packages list :
+````
+ccxt , pandas , ta
+````
+
+
 for run use this:
 ````
 python main.py
 ````
+
+
 
