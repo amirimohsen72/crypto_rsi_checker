@@ -1,4 +1,5 @@
 import time
+import winsound
 import ccxt
 import pandas as pd
 import ta
@@ -11,6 +12,8 @@ TIMEFRAME = "1m"
 COUNT_BEST = 0
 SLEEP_INTERVAL = 45   # 300 ثانیه = 5 دقیقه
 last_rsi = None
+frequency =2222
+duration =200
 
 exchange = ccxt.bybit({
     'options': {'defaultType': 'future'}
@@ -57,10 +60,11 @@ while True:
         # هشدار هم میشه اضافه کرد
         if last_rsi > 75 :
             COUNT_BEST +=1
-
+            winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
             print("🚨 RSI is high!")
         elif last_rsi < 30 :
             COUNT_BEST+=1
+            winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
             print("📉 RSI is low!")
 
 
