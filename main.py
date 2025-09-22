@@ -14,6 +14,7 @@ SLEEP_INTERVAL = 45   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 frequency =2222
 duration =200
+last_best_C = ""
 
 exchange = ccxt.bybit({
     'options': {'defaultType': 'future'}
@@ -41,6 +42,9 @@ with open("symbols.txt", "r") as f:
 while True:
     
     print(f"count best position rmi : {COUNT_BEST} \n **************************")
+    if last_best_C :
+        print(last_best_C)
+        last_best_C = ""
     for symbol in symbols:
         try:
             SYMBOL = symbol
@@ -74,6 +78,7 @@ while True:
                 print("🚨 RSI is high!")
                 print(f"Price: {last_price:.4f}")
                 print(f"RSI  : {last_rsi:.2f}")
+                last_best_C += f'{SYMBOL}    '
 
             elif last_rsi < 30 :
                 COUNT_BEST+=1
@@ -81,6 +86,7 @@ while True:
                 print("📉 RSI is low!")
                 print(f"Price: {last_price:.4f}")
                 print(f"RSI  : {last_rsi:.2f}")
+                last_best_C += f'{SYMBOL}   '
             else :
                 print(f"RSI is normal : {last_rsi:.2f}")
             print("----------------------------------------------")
