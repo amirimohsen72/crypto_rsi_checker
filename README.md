@@ -18,9 +18,9 @@ install packages :
 pip install -r requirements.txt
 ````
 
-packages list :
+installed packages list :
 ````
-ccxt , pandas , ta
+ccxt , pandas , ta , 
 ````
 
 

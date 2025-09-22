@@ -1,3 +1,4 @@
+import time
 import ccxt
 import pandas as pd
 import ta
@@ -66,5 +67,5 @@ while True:
     except Exception as e:
         print("⚠️ Error:", e)
 
-    # print(f"--- waiting {SLEEP_INTERVAL}sec to reload --- now : {time.strftime('%H:%M:%S')}\n")
- 
+    print(f"--- waiting {SLEEP_INTERVAL}sec to reload --- now : {time.strftime('%H:%M:%S')}\n")
+    time.sleep(SLEEP_INTERVAL) 
