@@ -1,6 +1,7 @@
 import ccxt
 import pandas as pd
 import ta
+import os
 
 
 
@@ -10,13 +11,20 @@ COUNT_BEST = 0
 SLEEP_INTERVAL = 45   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 
-
-
-
 exchange = ccxt.bybit({
     'options': {'defaultType': 'future'}
 })
 
+
+
+def clear_console():
+    """Clears the console screen."""
+    # For Windows
+    if os.name == 'nt':
+        os.system('cls')
+    # For macOS and Linux
+    else:
+        os.system('clear')
 
 while True:
     try:
@@ -26,7 +34,7 @@ while True:
         df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
         df["RSI_EMA"] = ta.momentum.RSIIndicator(df["close"], window=14, fillna=False).rsi()  # ta خودش EMA استفاده میکنه
-
+        clear_console()
         
         print(f"count best position rmi : {COUNT_BEST}")
         if last_rsi != None :
