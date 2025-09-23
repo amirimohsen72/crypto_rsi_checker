@@ -4,13 +4,14 @@ import ccxt
 import pandas as pd
 import ta
 import os
+import sqlite3
 
 
 
 SYMBOL = "MYX/USDT:USDT"
 TIMEFRAME = "1m"
 COUNT_BEST = 0
-SLEEP_INTERVAL = 45   # 300 ثانیه = 5 دقیقه
+SLEEP_INTERVAL = 35   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 frequency =2222
 duration =200
@@ -32,6 +33,21 @@ def clear_console():
         os.system('clear')
 
 
+# اتصال به دیتابیس
+conn = sqlite3.connect("data.db", check_same_thread=False)
+cursor = conn.cursor()
+
+# جدول اگه وجود نداره بساز
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS rsi_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT,
+    price REAL,
+    rsi REAL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""")
+conn.commit()
 
 with open("symbols.txt", "r") as f:
     # SYMBOL = f.readline()
@@ -69,7 +85,9 @@ while True:
             # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
             # print(f"RSI EMA: {last_rsi_ema:.2f}")
             # print(f"RSI  : {last_rsi:.2f}")
-
+            cursor.execute("INSERT INTO rsi_data (symbol, price, rsi) VALUES (?, ?, ?)",
+                           (symbol, last_price, last_rsi))
+            conn.commit()
 
             # هشدار هم میشه اضافه کرد
             if last_rsi > 75 :
