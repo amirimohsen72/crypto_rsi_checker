@@ -36,19 +36,7 @@ def clear_console():
 # اتصال به دیتابیس
 conn = sqlite3.connect("data.db", check_same_thread=False)
 cursor = conn.cursor()
-
-# جدول اگه وجود نداره بساز
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS rsi_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT,
-    price REAL,
-    rsi REAL,
-    timeframe TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-""")
-conn.commit()
+ 
 
 with open("symbols.txt", "r") as f:
     # SYMBOL = f.readline()
@@ -89,7 +77,28 @@ while True:
             cursor.execute("INSERT INTO rsi_data (symbol, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
                            (symbol, last_price, last_rsi,TIMEFRAME))
             conn.commit()
+            
 
+            # انتخاب ستون مناسب بر اساس تایم‌فریم
+            col_name = {
+                "1m": "rsi_1m",
+                "5m": "rsi_5m",
+                "15m": "rsi_15m",
+                "1h": "rsi_1h",
+                "4h": "rsi_4h"
+            }[TIMEFRAME]
+
+            # اول اگه نبود اضافه کن
+            cursor.execute("INSERT OR IGNORE INTO market_info (symbol) VALUES (?)", (symbol,))
+
+            # بعد ستون مربوطه رو آپدیت کن
+            cursor.execute(f"""
+                UPDATE market_info
+                SET price=?, {col_name}=?, updated_at=CURRENT_TIMESTAMP
+                WHERE symbol=?
+            """, (last_price, last_rsi, symbol))
+
+            conn.commit()
             # هشدار هم میشه اضافه کرد
             if last_rsi > 75 :
                 COUNT_BEST +=1
