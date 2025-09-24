@@ -13,7 +13,7 @@ def get_data():
     cursor.execute("""
         SELECT * 
         FROM market_info 
-        ORDER BY rsi_1m asc
+        ORDER BY  ABS(rsi_1m - 50) desc
     """)
     rows = cursor.fetchall()
     conn.close()
