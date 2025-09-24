@@ -20,14 +20,20 @@ pip install -r requirements.txt
 
 installed packages list :
 ````
-ccxt , pandas , ta , 
+ccxt , pandas , ta , flask
 ````
 
-
-for run use this:
+first run for setup table :
+````
+python db_setup.py
+````
+for run rsi_checker use this:
 ````
 python main.py
 ````
-
+for run web app use this :
+````
+python app.py
+````
 
 
