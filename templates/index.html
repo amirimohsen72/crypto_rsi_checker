@@ -8,8 +8,10 @@
         table { width: 80%; margin: auto; border-collapse: collapse; background: white; }
         th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
         th { background: #333; color: white; }
-        .high { color: red; font-weight: bold; }
-        .low { color: blue; font-weight: bold; }
+        .rsi-high { color: #ff4c4c; font-weight: bold; }  /* RSI بالا */
+        .rsi-low { color: #00bfff; font-weight: bold; }    /* RSI پایین */
+        .rsi-mid { color: #877d7d; }                      /* RSI نرمال */
+
     </style>
 </head>
 <body>
@@ -19,13 +21,35 @@
             <th>Symbol</th>
             <th>Price</th>
             <th>RSI 1m</th>
+            <th>RSI 15m</th>
+            <th>RSI 1h</th>
+            <th>RSI 4h</th>
             <th>Time</th>
         </tr>
         {% for row in data %}
         <tr>
             <td>{{ row["symbol"] }}</td>
             <td>{{ row["price"] }}</td>
-            <td>{{ row["rsi_1m"] }}</td>
+            <td class="
+            {% if row["rsi_1m"] < 30 %}rsi-low
+            {% elif row["rsi_1m"] > 70 %}rsi-high
+            {% else %}rsi-mid{% endif %}
+        ">{{ row["rsi_1m"] }}</td>
+            <td class="
+            {% if row["rsi_15m"] < 30 %}rsi-low
+            {% elif row["rsi_15m"] > 70 %}rsi-high
+            {% else %}rsi-mid{% endif %}
+        ">{{ row["rsi_15m"] }}</td>
+            <td class="
+            {% if row["rsi_1h"] < 30 %}rsi-low
+            {% elif row["rsi_1h"] > 70 %}rsi-high
+            {% else %}rsi-mid{% endif %}
+        ">{{ row["rsi_1h"] }}</td>
+            <td class="
+            {% if row["rsi_4h"] < 30 %}rsi-low
+            {% elif row["rsi_4h"] > 70 %}rsi-high
+            {% else %}rsi-mid{% endif %}
+        ">{{ row["rsi_4h"] }}</td>
             <td>{{ row["updated_at"] }}</td>
         </tr>
         {% endfor %}

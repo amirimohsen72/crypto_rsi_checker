@@ -11,7 +11,7 @@ def get_data():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT symbol, price, rsi_1m, updated_at 
+        SELECT * 
         FROM market_info 
         ORDER BY rsi_1m asc
     """)
@@ -34,6 +34,9 @@ def get_data():
             "symbol": row["symbol"],
             "price": row["price"],
             "rsi_1m": row["rsi_1m"],
+            "rsi_15m": row["rsi_15m"],
+            "rsi_1h": row["rsi_1h"],
+            "rsi_4h": row["rsi_4h"],
             "updated_at": dt_tehran.strftime("%Y-%m-%d %H:%M:%S")
         })
 

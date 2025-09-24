@@ -9,9 +9,9 @@ import sqlite3
 
 
 SYMBOL = "MYX/USDT:USDT"
-TIMEFRAME = "1m"
+# TIMEFRAME = "1m"
 COUNT_BEST = 0
-SLEEP_INTERVAL = 35   # 300 ثانیه = 5 دقیقه
+SLEEP_INTERVAL = 25   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 frequency =2222
 duration =200
@@ -21,6 +21,7 @@ exchange = ccxt.bybit({
     'options': {'defaultType': 'future'}
 })
 
+TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h"]
 
 
 def clear_console():
@@ -53,70 +54,75 @@ while True:
     for symbol in symbols:
         try:
             SYMBOL = symbol
-            # گرفتن کندل‌ها
-            bars = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=200)
-            df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
-            df["RSI_EMA"] = ta.momentum.RSIIndicator(df["close"], window=14, fillna=False).rsi()  # ta خودش EMA استفاده میکنه
-            # clear_console()
             
-            # if last_rsi != None :
-            #     print(f"last rsi : {last_rsi:.2f} \n -----------------")
-            print(f"crypto name : {SYMBOL}" )
+            for TIMEFRAME in TIMEFRAMES:
+                # گرفتن کندل‌ها
+                bars = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=200)
+                df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
-            df["RSI"] = ta.momentum.RSIIndicator(df["close"], window=14).rsi()
+                df["RSI_EMA"] = ta.momentum.RSIIndicator(df["close"], window=14, fillna=False).rsi()  # ta خودش EMA استفاده میکنه
+                # clear_console()
+                
+                # if last_rsi != None :
+                #     print(f"last rsi : {last_rsi:.2f} \n -----------------")
+                print(f"crypto name : {SYMBOL}" )
 
-            last_price = df["close"].iloc[-1]
-            last_rsi = df["RSI"].iloc[-1]
-            last_rsi_ema = df["RSI_EMA"].iloc[-1]
+                df["RSI"] = ta.momentum.RSIIndicator(df["close"], window=14).rsi()
 
-            # print(f"Price: {last_price:.4f}")
-            # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
-            # print(f"RSI EMA: {last_rsi_ema:.2f}")
-            # print(f"RSI  : {last_rsi:.2f}")
-            cursor.execute("INSERT INTO rsi_data (symbol, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
-                           (symbol, last_price, last_rsi,TIMEFRAME))
-            conn.commit()
-            
+                last_price = df["close"].iloc[-1]
+                last_rsi = round(df["RSI"].iloc[-1], 2)
+                
+                last_rsi_ema = df["RSI_EMA"].iloc[-1]
 
-            # انتخاب ستون مناسب بر اساس تایم‌فریم
-            col_name = {
-                "1m": "rsi_1m",
-                "5m": "rsi_5m",
-                "15m": "rsi_15m",
-                "1h": "rsi_1h",
-                "4h": "rsi_4h"
-            }[TIMEFRAME]
+                # print(f"Price: {last_price:.4f}")
+                # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
+                # print(f"RSI EMA: {last_rsi_ema:.2f}")
+                # print(f"RSI  : {last_rsi:.2f}")
+                cursor.execute("INSERT INTO rsi_data (symbol, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
+                            (symbol, last_price, last_rsi,TIMEFRAME))
+                conn.commit()
+                
 
-            # اول اگه نبود اضافه کن
-            cursor.execute("INSERT OR IGNORE INTO market_info (symbol) VALUES (?)", (symbol,))
+                # انتخاب ستون مناسب بر اساس تایم‌فریم
+                col_name = {
+                    "1m": "rsi_1m",
+                    "5m": "rsi_5m",
+                    "15m": "rsi_15m",
+                    "1h": "rsi_1h",
+                    "4h": "rsi_4h"
+                }[TIMEFRAME]
 
-            # بعد ستون مربوطه رو آپدیت کن
-            cursor.execute(f"""
-                UPDATE market_info
-                SET price=?, {col_name}=?, updated_at=CURRENT_TIMESTAMP
-                WHERE symbol=?
-            """, (last_price, last_rsi, symbol))
+                # اول اگه نبود اضافه کن
+                cursor.execute("INSERT OR IGNORE INTO market_info (symbol) VALUES (?)", (symbol,))
 
-            conn.commit()
-            # هشدار هم میشه اضافه کرد
-            if last_rsi > 75 :
-                COUNT_BEST +=1
-                winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
-                print("🚨 RSI is high!")
-                print(f"Price: {last_price:.4f}")
-                print(f"RSI  : {last_rsi:.2f}")
-                last_best_C += f'{SYMBOL}    '
+                # بعد ستون مربوطه رو آپدیت کن
+                cursor.execute(f"""
+                    UPDATE market_info
+                    SET price=?, {col_name}=?, updated_at=CURRENT_TIMESTAMP
+                    WHERE symbol=?
+                """, (last_price, last_rsi, symbol))
 
-            elif last_rsi < 30 :
-                COUNT_BEST+=1
-                winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
-                print("📉 RSI is low!")
-                print(f"Price: {last_price:.4f}")
-                print(f"RSI  : {last_rsi:.2f}")
-                last_best_C += f'{SYMBOL}   '
-            else :
-                print(f"RSI is normal : {last_rsi:.2f}")
+                conn.commit()
+                # هشدار هم میشه اضافه کرد
+                if last_rsi > 75 :
+                    COUNT_BEST +=1
+                    winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
+                    print("🚨 RSI is high! "+TIMEFRAME)
+                    print(f"Price: {last_price:.4f}")
+                    print(f"RSI  : {last_rsi:.2f}")
+                    last_best_C += f'{SYMBOL}    '
+
+                elif last_rsi < 30 :
+                    COUNT_BEST+=1
+                    winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
+                    print("📉 RSI is low! " +TIMEFRAME)
+                    print(f"Price: {last_price:.4f}")
+                    print(f"RSI  : {last_rsi:.2f}")
+                    last_best_C += f'{SYMBOL}   '
+                else :
+                    print(f"RSI is normal : {last_rsi:.2f} | "+TIMEFRAME)
+                time.sleep(1) 
             print("----------------------------------------------")
 
         except Exception as e:
