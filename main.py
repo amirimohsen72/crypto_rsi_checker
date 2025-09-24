@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS rsi_data (
     symbol TEXT,
     price REAL,
     rsi REAL,
+    timeframe TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 """)
@@ -85,8 +86,8 @@ while True:
             # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
             # print(f"RSI EMA: {last_rsi_ema:.2f}")
             # print(f"RSI  : {last_rsi:.2f}")
-            cursor.execute("INSERT INTO rsi_data (symbol, price, rsi) VALUES (?, ?, ?)",
-                           (symbol, last_price, last_rsi))
+            cursor.execute("INSERT INTO rsi_data (symbol, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
+                           (symbol, last_price, last_rsi,TIMEFRAME))
             conn.commit()
 
             # هشدار هم میشه اضافه کرد
