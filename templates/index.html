@@ -23,12 +23,10 @@
         </tr>
         {% for row in data %}
         <tr>
-            <td>{{ row[0] }}</td>
-            <td>{{ "%.2f"|format(row[1]) }}</td>
-            <td class="{% if row[2] and row[2] > 70 %}high{% elif row[2] and row[2] < 30 %}low{% endif %}">
-                {{ "%.2f"|format(row[2]) }}
-            </td>
-            <td>{{ row[3] }}</td>
+            <td>{{ row["symbol"] }}</td>
+            <td>{{ row["price"] }}</td>
+            <td>{{ row["rsi_1m"] }}</td>
+            <td>{{ row["updated_at"] }}</td>
         </tr>
         {% endfor %}
     </table>
