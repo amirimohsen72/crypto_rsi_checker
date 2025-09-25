@@ -9,7 +9,7 @@ exchange = ccxt.bybit({
 markets = exchange.load_markets()
 
 symbols = [
-    f"{symbol}:USDT" for symbol, data in markets.items()
+    f"{symbol}" for symbol, data in markets.items()
     if data.get("type") == "swap" and data.get("quote") == "USDT"
 ]
 
