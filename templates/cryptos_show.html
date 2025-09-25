@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>RSI Monitor</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; direction: rtl; background: #f4f4f4; }
+        table { border-collapse: collapse; width: 100%; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #333; color: white; }
+        .overbought { background: #ffcccc; }  /* RSI بالای 70 */
+        .oversold { background: #ccffcc; }   /* RSI زیر 30 */
+    </style>
+</head>
+<body>
+    <h2>📊 مانیتور RSI</h2>
+    <table>
+        <tr>
+            <th>نماد</th>
+            <th>قیمت</th>
+            <th>RSI 1m</th>
+            <th>RSI 5m</th>
+            <th>RSI 15m</th>
+            <th>RSI 1h</th>
+            <th>RSI 4h</th>
+            <th>آخرین آپدیت</th>
+        </tr>
+        {% for row in data %}
+        <tr>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            {% for val in row[2:7] %}
+                <td class="{% if val and val > 70 %}overbought{% elif val and val < 30 %}oversold{% endif %}">
+                    {{ "%.2f"|format(val) if val else "-" }}
+                </td>
+            {% endfor %}
+            <td>{{ row[7]|localtime }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

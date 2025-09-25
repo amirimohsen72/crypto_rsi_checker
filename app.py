@@ -34,6 +34,7 @@ def get_data():
             "symbol": row["symbol"],
             "price": row["price"],
             "rsi_1m": row["rsi_1m"],
+            "rsi_5m": row["rsi_5m"],
             "rsi_15m": row["rsi_15m"],
             "rsi_1h": row["rsi_1h"],
             "rsi_4h": row["rsi_4h"],
@@ -42,10 +43,37 @@ def get_data():
 
     return data
 
+def get_data2():
+    conn = sqlite3.connect("data.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT symbol, price, rsi_1m, rsi_5m, rsi_15m, rsi_1h, rsi_4h, updated_at
+        FROM market_info
+        ORDER BY ABS(rsi_1m - 50) DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+@app.template_filter("localtime")
+def localtime_filter(utc_string):
+    if not utc_string:
+        return ""
+    utc_time = datetime.strptime(utc_string, "%Y-%m-%d %H:%M:%S")
+    tehran = pytz.timezone("Asia/Tehran")
+    return utc_time.replace(tzinfo=pytz.utc).astimezone(tehran).strftime("%Y-%m-%d %H:%M:%S")
+
+
 @app.route("/")
 def index():
     data = get_data()
     return render_template("index.html", data=data)
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+@app.route("/list2")
+def index2():
+    data = get_data2()
+    return render_template("cryptos_show.html", data=data)
+
+
+# if __name__ == "__main__":
+#     app.run(debug=True, port=5000) #called in run.py

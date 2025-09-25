@@ -21,6 +21,7 @@
             <th>Symbol</th>
             <th>Price</th>
             <th>RSI 1m</th>
+            <th>RSI 5m</th>
             <th>RSI 15m</th>
             <th>RSI 1h</th>
             <th>RSI 4h</th>
@@ -35,6 +36,11 @@
             {% elif row["rsi_1m"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
         ">{{ row["rsi_1m"] }}</td>
+            <td class="
+            {% if row["rsi_5m"] < 30 %}rsi-low
+            {% elif row["rsi_5m"] > 70 %}rsi-high
+            {% else %}rsi-mid{% endif %}
+        ">{{ row["rsi_5m"] }}</td>
             <td class="
             {% if row["rsi_15m"] < 30 %}rsi-low
             {% elif row["rsi_15m"] > 70 %}rsi-high
