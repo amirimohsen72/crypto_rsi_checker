@@ -63,6 +63,7 @@ def get_data():
             "rsi_15m": row["rsi_15m"],
             "rsi_1h": row["rsi_1h"],
             "rsi_4h": row["rsi_4h"],
+            "price_change": row["price_change"],
             "updated_at": dt_tehran.strftime("%Y-%m-%d %H:%M:%S"),
             "status": status,
             "color": color

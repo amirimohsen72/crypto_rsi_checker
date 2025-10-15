@@ -55,8 +55,9 @@ def run_fetcher_loop():
         for symbol in symbols:
             try:
                 SYMBOL = symbol
+                cursor.execute("SELECT price FROM market_info WHERE symbol=?", (SYMBOL,))
+                row = cursor.fetchone()
 
-                
                 for TIMEFRAME in TIMEFRAMES:
                     # گرفتن کندل‌ها
                     bars = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=200)
@@ -97,12 +98,17 @@ def run_fetcher_loop():
                     # اول اگه نبود اضافه کن
                     cursor.execute("INSERT OR IGNORE INTO market_info (symbol) VALUES (?)", (symbol,))
 
+                    if row and row[0] is not None:
+                        prev_price = row[0]
+                        price_change = round(last_price - prev_price, 4)
+                    else:
+                        price_change = 0
                     # بعد ستون مربوطه رو آپدیت کن
                     cursor.execute(f"""
                         UPDATE market_info
-                        SET price=?, {col_name}=?, updated_at=CURRENT_TIMESTAMP
+                        SET price=?, {col_name}=?, price_change=?, updated_at=CURRENT_TIMESTAMP 
                         WHERE symbol=?
-                    """, (last_price, last_rsi, symbol))
+                    """, (last_price, last_rsi, price_change, symbol))
 
                     conn.commit()
                     # هشدار هم میشه اضافه کرد

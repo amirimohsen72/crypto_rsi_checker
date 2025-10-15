@@ -32,7 +32,14 @@ def create_tables():
     )
     """)
 
+    # بررسی وجود ستون price_change قبل از اضافه کردن
+    cursor.execute("PRAGMA table_info(market_info)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "price_change" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN price_change REAL DEFAULT 0")
+
     conn.commit()
+
     conn.close()
 
 if __name__ == "__main__":
