@@ -13,6 +13,8 @@
         .rsi-mid { color: #877d7d; }                      /* RSI نرمال */
 
     </style>
+<!-- <meta http-equiv="refresh" content="180"> -->
+
 </head>
 <body>
     <h2 style="text-align:center">📊 RSI & Price Monitor</h2>
@@ -60,5 +62,10 @@
         </tr>
         {% endfor %}
     </table>
+    <script>
+        setTimeout(() => {
+          window.location.reload();
+        }, 180000); // هر 3 دقیقه = 180,000 میلی‌ثانیه
+      </script>
 </body>
 </html>
