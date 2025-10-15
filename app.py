@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, render_template
 import sqlite3
 import pytz  # نصب کن: pip install pytz
@@ -20,10 +20,35 @@ def get_data():
 
     
     # return rows
-
+    
+    tz_tehran = pytz.timezone("Asia/Tehran")
+    now = datetime.now(tz_tehran)
     data = []
     for row in rows:
         updated_at = row["updated_at"]
+        
+
+
+        updated_at_dt = datetime.strptime(updated_at, "%Y-%m-%d %H:%M:%S")
+        updated_at_dt = updated_at_dt.replace(tzinfo=timezone.utc).astimezone(tz_tehran)
+
+
+        if updated_at_dt:
+            diff = now - updated_at_dt
+            minutes = diff.total_seconds() / 60
+
+            if minutes <= 2:
+                status = "✅"
+                color = "green"
+            elif minutes <= 10:
+                status = "⚠️ با تأخیر (ریسک متوسط)"
+                color = "orange"
+            else:
+                status = "🚨 قدیمی (ریسک بالا)"
+                color = "red"
+        else:
+            status = "⏳ بدون داده"
+            color = "gray"
 
         # فرض: updated_at به صورت ISO string (مثلا: 2025-09-24 14:22:10) در DB ذخیره شده   
         dt_utc = datetime.strptime(updated_at, "%Y-%m-%d %H:%M:%S")  
@@ -38,7 +63,9 @@ def get_data():
             "rsi_15m": row["rsi_15m"],
             "rsi_1h": row["rsi_1h"],
             "rsi_4h": row["rsi_4h"],
-            "updated_at": dt_tehran.strftime("%Y-%m-%d %H:%M:%S")
+            "updated_at": dt_tehran.strftime("%Y-%m-%d %H:%M:%S"),
+            "status": status,
+            "color": color
         })
 
     return data

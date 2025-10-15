@@ -56,7 +56,7 @@
             {% elif row["rsi_4h"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
         ">{{ row["rsi_4h"] }}</td>
-            <td>{{ row["updated_at"] }}</td>
+            <td style="background-color: {{ row.color }};" >{{ row["updated_at"] }} {{ row.status }}</td>
         </tr>
         {% endfor %}
     </table>
