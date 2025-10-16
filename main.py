@@ -34,8 +34,8 @@ def clear_console():
 def get_active_symbols():
     conn = sqlite3.connect("data.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT future_symbol FROM symbols WHERE active = 1 AND future_symbol IS NOT NULL")
-    symbols = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT id,future_symbol,base_symbol FROM symbols WHERE active = 1 AND future_symbol IS NOT NULL")
+    symbols = cursor.fetchall()
     conn.close()
     return symbols
 
@@ -56,10 +56,13 @@ def run_fetcher_loop():
         if last_best_C :
             print(last_best_C)
             last_best_C = ""
-        for symbol in symbols:
+        for id,future_symbol,base_symbol in symbols:
             try:
-                SYMBOL = symbol
-                cursor.execute("SELECT price FROM market_info WHERE symbol=?", (SYMBOL,))
+                symbol_id = id
+                
+                SYMBOL = future_symbol
+                print(SYMBOL)
+                cursor.execute("SELECT price FROM market_info WHERE symbol_id=?", (symbol_id,))
                 row = cursor.fetchone()
 
                 for TIMEFRAME in TIMEFRAMES:
@@ -85,8 +88,8 @@ def run_fetcher_loop():
                     # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
                     # print(f"RSI EMA: {last_rsi_ema:.2f}")
                     # print(f"RSI  : {last_rsi:.2f}")
-                    cursor.execute("INSERT INTO rsi_data (symbol, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
-                                (symbol, last_price, last_rsi,TIMEFRAME))
+                    cursor.execute("INSERT INTO rsi_data (symbol_id, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
+                                (symbol_id, last_price, last_rsi,TIMEFRAME))
                     conn.commit()
                     
 
@@ -100,7 +103,7 @@ def run_fetcher_loop():
                     }[TIMEFRAME]
 
                     # اول اگه نبود اضافه کن
-                    cursor.execute("INSERT OR IGNORE INTO market_info (symbol) VALUES (?)", (symbol,))
+                    cursor.execute("INSERT OR IGNORE INTO market_info (symbol_id) VALUES (?)", (symbol_id,))
 
                     if row and row[0] is not None:
                         prev_price = row[0]
@@ -111,8 +114,8 @@ def run_fetcher_loop():
                     cursor.execute(f"""
                         UPDATE market_info
                         SET price=?, {col_name}=?, price_change=?, updated_at=CURRENT_TIMESTAMP 
-                        WHERE symbol=?
-                    """, (last_price, last_rsi, price_change, symbol))
+                        WHERE symbol_id=?
+                    """, (last_price, last_rsi, price_change, symbol_id))
 
                     conn.commit()
                     # هشدار هم میشه اضافه کرد

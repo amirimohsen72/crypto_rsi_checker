@@ -14,7 +14,7 @@ def get_data():
         SELECT * 
         FROM market_info AS m
         JOIN symbols AS s 
-            ON m.symbol = s.future_symbol
+            ON m.symbol_id = s.id
         WHERE s.active = 1
         ORDER BY ABS(m.rsi_1m - 50) DESC
 
@@ -60,7 +60,7 @@ def get_data():
         dt_tehran = dt_utc.astimezone(tehran_tz)  # تبدیل به تهران
 
         data.append({
-            "symbol": row["symbol"],
+            "symbol": row["base_symbol"],
             "price": row["price"],
             "rsi_1m": row["rsi_1m"],
             "rsi_5m": row["rsi_5m"],
@@ -109,3 +109,4 @@ def index2():
 
 # if __name__ == "__main__":
 #     app.run(debug=True, port=5000) #called in run.py
+

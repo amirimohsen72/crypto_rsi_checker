@@ -10,26 +10,30 @@ def create_tables():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS rsi_data (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        symbol TEXT,
+        symbol_id INTEGER NOT NULL,
         timeframe TEXT,
         price REAL,
         rsi REAL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (symbol_id) REFERENCES symbols(id)
+
     )
     """)
 
     # جدول لحظه‌ای (فقط آخرین RSIها برای هر نماد و تایم‌فریم)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS market_info (
-        symbol TEXT PRIMARY KEY,
+        symbol_id INTEGER PRIMARY KEY,
         rsi_1m REAL,
         rsi_5m REAL,
         rsi_15m REAL,
         rsi_1h REAL,
         rsi_4h REAL,
         price REAL,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (symbol_id) REFERENCES symbols(id)
+
+            )
     """)
 
     
