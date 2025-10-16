@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ data.name or data.base_symbol }} | جزئیات ارز</title>
+    <style>
+        body { font-family: sans-serif; direction: rtl; background: #f5f5f5; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ddd; max-width: 600px; margin: auto; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid #ddd; text-align: center; }
+        .green { color: green; font-weight: bold; }
+        .red { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>{{ data.name or data.base_symbol }}</h1>
+        <p>نماد پایه: {{ data.base_symbol }}</p>
+        <p>قیمت فعلی: {{ data.price }} </p>
+        <p>
+            <strong>تغییر قیمت:</strong>
+            <span style="color: {{ data.color }};">
+              {{ data.price_change_str }}
+            </span>
+          </p>
+        <p>آخرین بروزرسانی: {{ data.updated_at }}</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>تایم‌فریم</th>
+                    <th>RSI</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tf, val in {
+                    '1 دقیقه': data.rsi_1m,
+                    '5 دقیقه': data.rsi_5m,
+                    '15 دقیقه': data.rsi_15m,
+                    '1 ساعت': data.rsi_1h,
+                    '4 ساعت': data.rsi_4h
+                }.items() %}
+                <tr>
+                    <td>{{ tf }}</td>
+                    <td class="{% if val > 70 %}red{% elif val < 30 %}green{% endif %}">
+                        {{ val }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <a href="/">⬅ بازگشت به لیست</a>
+    </div>
+</body>
+</html>

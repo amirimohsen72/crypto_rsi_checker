@@ -31,7 +31,7 @@
         </tr>
         {% for row in data %}
         <tr>
-            <td>{{ row["symbol"] }}</td>
+            <td><a href="/symbol/{{ row['symbol'] }}">{{ row["symbol"] }}</a></td>
             <td style="color: {{ 'green' if row['price_change'] > 0 else 'red' if row['price_change'] < 0 else 'gray' }}"> {{ row["price"] }}  ( {{ "%.4f"|format(row["price_change"]) }})</td>
             <td class="
             {% if row["rsi_1m"] < 30 %}rsi-low

@@ -110,3 +110,54 @@ def index2():
 # if __name__ == "__main__":
 #     app.run(debug=True, port=5000) #called in run.py
 
+@app.route("/symbol/<symbol>")
+def symbol_detail(symbol):
+    conn = sqlite3.connect("data.db")
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            s.name,
+            s.base_symbol,
+            s.spot_symbol,
+            s.future_symbol,
+            s.active,
+            m.price,
+            m.rsi_1m,
+            m.rsi_5m,
+            m.rsi_15m,
+            m.rsi_1h,
+            m.rsi_4h,
+            m.price_change,
+            m.updated_at
+        FROM market_info AS m
+        JOIN symbols AS s 
+            ON m.symbol_id = s.id
+        WHERE s.base_symbol = ?
+    """
+    cursor.execute(query, (symbol.upper(),))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return f"<h3>🚫 اطلاعاتی برای {symbol} یافت نشد.</h3>"
+
+    columns = [desc[0] for desc in cursor.description]
+    data = dict(zip(columns, row))
+        # 🔹 بررسی مقدار تغییر قیمت و فرمت آن
+    price_change = data.get("price_change")
+    print(price_change)
+    if price_change is not None:
+        if price_change > 0:
+            data["price_change_str"] = f"+{price_change:.4f}"
+            data["color"] = "green"
+        elif price_change < 0:
+            data["price_change_str"] = f"{price_change:.4f}"
+            data["color"] = "red"
+        else:
+            data["price_change_str"] = f"{price_change:.4f}"
+            data["color"] = "gray"
+    else:
+        data["price_change_str"] = "-"
+        data["color"] = "gray"
+    return render_template("symbol_detail.html", data=data)
