@@ -23,7 +23,7 @@ installed packages list :
 ccxt , pandas , ta , flask
 ````
 
-##Separate execution
+# Separate execution
 first run for setup table :
 ````
 python db_setup.py
@@ -37,7 +37,8 @@ for run web app use this :
 python app.py
 ````
 
-##Integrated execution
+# Integrated execution
+
 for run automatic app use this (setup db & fetcher & web page ) :
 ````
 python run.py
