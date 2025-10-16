@@ -146,3 +146,7 @@ def run_fetcher_loop():
             time.sleep(SLEEP_INTERVAL) 
         time.sleep(10) 
         clear_console()
+
+if __name__ == "__main__":
+    run_fetcher_loop()
+ 
