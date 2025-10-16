@@ -31,23 +31,27 @@ def clear_console():
     else:
         os.system('clear')
 
+def get_active_symbols():
+    conn = sqlite3.connect("data.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT future_symbol FROM symbols WHERE active = 1 AND future_symbol IS NOT NULL")
+    symbols = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return symbols
 
 # اتصال به دیتابیس
 conn = sqlite3.connect("data.db", check_same_thread=False)
 cursor = conn.cursor()
  
 
-with open("symbols.txt", "r") as f:
-    # SYMBOL = f.readline()
-    symbols = [line.strip() for line in f.readlines() if line.strip()]
-    # for symbol in symbols:
-    #     SYMBOL = symbol
+
 def run_fetcher_loop():
     global last_best_C, COUNT_BEST, last_rsi
     frequency =2222
     duration =200
     while True:
-        
+        symbols = get_active_symbols()
+
         print(f"count best position rmi : {COUNT_BEST} \n **************************")
         if last_best_C :
             print(last_best_C)

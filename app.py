@@ -12,8 +12,12 @@ def get_data():
     cursor = conn.cursor()
     cursor.execute("""
         SELECT * 
-        FROM market_info 
-        ORDER BY  ABS(rsi_1m - 50) desc
+        FROM market_info AS m
+        JOIN symbols AS s 
+            ON m.symbol = s.future_symbol
+        WHERE s.active = 1
+        ORDER BY ABS(m.rsi_1m - 50) DESC
+
     """)
     rows = cursor.fetchall()
     conn.close()
