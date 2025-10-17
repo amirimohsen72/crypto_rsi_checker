@@ -140,6 +140,14 @@ def symbol_detail(symbol):
 
     columns = [desc[0] for desc in cursor.description]
     data = dict(zip(columns, row))
+    if data["updated_at"]:
+        # تبدیل رشته به datetime
+        dt_utc = datetime.strptime(data["updated_at"], "%Y-%m-%d %H:%M:%S")
+        # منطقه زمانی تهران
+        tz_tehran = pytz.timezone("Asia/Tehran")
+        dt_tehran = pytz.utc.localize(dt_utc).astimezone(tz_tehran)
+        data["updated_at"] = dt_tehran.strftime("%Y-%m-%d %H:%M:%S")
+
         # 🔹 بررسی مقدار تغییر قیمت و فرمت آن
     price_change = data.get("price_change")
     print(price_change)
