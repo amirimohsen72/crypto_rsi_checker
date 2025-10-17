@@ -105,6 +105,8 @@ def index2():
 # if __name__ == "__main__":
 #     app.run(debug=True, port=5000) #called in run.py
 
+
+    
 @app.route("/symbol/<symbol>")
 def symbol_detail(symbol):
     conn = sqlite3.connect("data.db")
@@ -112,6 +114,7 @@ def symbol_detail(symbol):
 
     query = """
         SELECT 
+            symbol_id,
             s.name,
             s.base_symbol,
             s.spot_symbol,
@@ -133,7 +136,7 @@ def symbol_detail(symbol):
     """
     cursor.execute(query, (symbol.upper(),))
     row = cursor.fetchone()
-    conn.close()
+    # conn.close()
 
     if not row:
         return f"<h3>🚫 اطلاعاتی برای {symbol} یافت نشد.</h3>"
@@ -164,4 +167,49 @@ def symbol_detail(symbol):
     else:
         data["price_change_str"] = "-"
         data["color"] = "gray"
-    return render_template("symbol_detail.html", data=data)
+
+    symbol_id = data['symbol_id']
+    
+    # گرفتن داده‌های نمودار برای هر تایم‌فریم
+    chart_data = {}
+    timeframes = ["1m", "5m", "15m", "1h", "4h"]
+
+    for tf in timeframes:
+        if tf in ["1m", "5m", "15m"]:
+            # تایم‌فریم‌های کوتاه: همه رکوردها (مثلا 200 آخر)
+            query = """
+                SELECT timestamp, rsi, price
+                FROM rsi_data
+                WHERE symbol_id = ? AND timeframe = ?
+                ORDER BY timestamp DESC
+                LIMIT 200
+            """
+            cursor.execute(query, (symbol_id, tf))
+            results = cursor.fetchall()
+            results.reverse()
+        else:
+            # تایم‌فریم‌های بزرگ: گروپ‌بندی بر اساس start ساعت/چهار ساعت
+            query = f"""
+                SELECT 
+                    strftime('%Y-%m-%d %H:00:00', timestamp) AS grp_time,
+                    AVG(rsi) as rsi,
+                    AVG(price) as price
+                FROM rsi_data
+                WHERE symbol_id = ? AND timeframe = ?
+                GROUP BY grp_time
+                ORDER BY grp_time DESC
+                LIMIT 50
+            """
+            cursor.execute(query, (symbol_id, tf))
+            results = cursor.fetchall()
+            results.reverse()
+
+        chart_data[tf] = {
+            "timestamps": [row[0] for row in results],
+            "rsi_values": [row[1] for row in results],
+            "prices": [row[2] for row in results]
+        }
+
+    
+    conn.close()
+    return render_template("symbol_detail.html", data=data, chart_data=chart_data)

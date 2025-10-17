@@ -11,7 +11,7 @@ import sqlite3
 # SYMBOL = "MYX/USDT:USDT"
 # TIMEFRAME = "1m"
 COUNT_BEST = 0
-SLEEP_INTERVAL = 25   # 300 ثانیه = 5 دقیقه
+SLEEP_INTERVAL = 7   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 last_best_C = ""
 
@@ -181,9 +181,9 @@ def run_fetcher_loop():
 
             print(f"--- waiting {SLEEP_INTERVAL}sec to reload --- now : {time.strftime('%H:%M:%S')}\n")
             time.sleep(SLEEP_INTERVAL) 
-        time.sleep(10) 
+        
         clear_console()
-
+    time.sleep(7) 
 if __name__ == "__main__":
     run_fetcher_loop()
  

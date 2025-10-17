@@ -12,6 +12,8 @@
         .green { color: green; font-weight: bold; }
         .red { color: red; font-weight: bold; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
     <div class="card">
@@ -36,18 +38,23 @@
                 </tr>
             </thead>
             <tbody>
-                {% for tf, val in {
-                    '1 دقیقه': data.rsi_1m,
-                    '5 دقیقه': data.rsi_5m,
-                    '15 دقیقه': data.rsi_15m,
-                    '1 ساعت': data.rsi_1h,
-                    '4 ساعت': data.rsi_4h
-                }.items() %}
+                {% set timeframes = [
+                    ('1m', '1 دقیقه', data.rsi_1m),
+                    ('5m', '5 دقیقه', data.rsi_5m),
+                    ('15m', '15 دقیقه', data.rsi_15m),
+                    ('1h', '1 ساعت', data.rsi_1h),
+                    ('4h', '4 ساعت', data.rsi_4h)
+                ] %}
+                {% for tf_key, tf_label, rsi_val in timeframes %}
+
                 <tr>
-                    <td>{{ tf }}</td>
-                    <td class="{% if val > 70 %}red{% elif val < 30 %}green{% endif %}">
-                        {{ val }}
+                    <td>{{ tf_label }}</td>
+                    <td class="{% if rsi_val > 70 %}red{% elif rsi_val < 30 %}green{% endif %}">
+                        {{ "%.2f"|format(rsi_val) if rsi_val else '-' }}
                     </td>
+                    <td><div class="chart-container">
+                        <canvas id="chart-{{ tf_key }}"></canvas>
+                    </div></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -55,5 +62,73 @@
 
         <a href="/">⬅ بازگشت به لیست</a>
     </div>
+
+
+
+    <script>
+        const chartData = {{ chart_data | tojson }};
+
+        function formatTime(timestamp, timeframe) {
+            const date = new Date(timestamp);
+            if (timeframe === '1m' || timeframe === '5m') {
+                return date.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                return date.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+            }
+        }
+
+        function createChart(canvasId, timeframe, data) {
+            if (!data || !data.rsi_values || data.rsi_values.length === 0) return;
+            
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: data.timestamps.map(t => formatTime(t, timeframe)),
+                    datasets: [{
+                        label: 'RSI',
+                        data: data.rsi_values,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 1,
+                        pointHoverRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: function(context) {
+                                    if (context.tick.value === 70) return 'rgba(239, 68, 68, 0.3)';
+                                    if (context.tick.value === 30) return 'rgba(34, 197, 94, 0.3)';
+                                    return 'rgba(0, 0, 0, 0.1)';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: { maxTicksLimit: 20 }
+                        }
+                    }
+                }
+            });
+        }
+
+        ['1m', '5m', '15m', '1h', '4h'].forEach(tf => {
+            if (chartData[tf]) {
+                createChart('chart-' + tf, tf, chartData[tf]);
+            }
+        });
+    </script>
+
+
 </body>
 </html>
