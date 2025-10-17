@@ -67,6 +67,8 @@ def create_tables():
     columns = [col[1] for col in cursor.fetchall()]
     if "price_change" not in columns:
         cursor.execute("ALTER TABLE market_info ADD COLUMN price_change REAL DEFAULT 0")
+    if "score" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN score REAL DEFAULT 0")
 
     cursor.execute("SELECT COUNT(*) FROM symbols")
     count = cursor.fetchone()[0]

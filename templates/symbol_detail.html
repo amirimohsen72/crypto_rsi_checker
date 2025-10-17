@@ -24,6 +24,8 @@
               {{ data.price_change_str }}
             </span>
           </p>
+        <p>امتیاز برای ترید کوتاه مدت و لحظه ای: {{ data.score }}</p>
+        <p style="color: {% if data.score < 0%}red{% elif data.score > 0 %}green{% endif %}">{% if data.score < 0%}پیشنهاد بررسی معامله شورت{% elif data.score > 0 %}پیشنهاد بررسی معامله لانگ{%else %}محدوده خنثی{% endif %}</p>
         <p>آخرین بروزرسانی: {{ data.updated_at }}</p>
 
         <table>

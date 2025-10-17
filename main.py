@@ -8,7 +8,7 @@ import sqlite3
 
 
 
-SYMBOL = "MYX/USDT:USDT"
+# SYMBOL = "MYX/USDT:USDT"
 # TIMEFRAME = "1m"
 COUNT_BEST = 0
 SLEEP_INTERVAL = 25   # 300 ثانیه = 5 دقیقه
@@ -20,6 +20,7 @@ exchange = ccxt.bybit({
 })
 
 TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h"]
+rsi_values = {}
 
 
 def clear_console():
@@ -38,6 +39,37 @@ def get_active_symbols():
     symbols = cursor.fetchall()
     conn.close()
     return symbols
+
+def calculate_score(rsi_values):
+    """
+    ورودی: دیکشنری از RSIهای تایم‌فریم‌ها
+    خروجی: عدد امتیاز نهایی بین -100 تا +100
+    """
+    score = 0
+    weights = {
+        "1m": 0.40,
+        "5m": 0.30,
+        "15m": 0.15,
+        "1h": 0.10,
+        "4h": 0.05
+    }
+
+    for tf, rsi in rsi_values.items():
+        if rsi is None:
+            continue
+
+        # 30 تا 70 محدوده تعادل
+        if rsi < 35:
+            score += (35 - rsi) * weights[tf] * 2  # هر چی پایین‌تر، امتیاز مثبت‌تر (خرید احتمالی)
+        elif rsi > 65:
+            score -= (rsi - 65) * weights[tf] * 2  # هر چی بالاتر، امتیاز منفی‌تر (فروش احتمالی)
+        elif rsi >50 and rsi<=65:
+            score -= (rsi - 50) * weights[tf]       # میل به فروش
+        elif rsi <50 and rsi>=35:
+            score += (50 - rsi) * weights[tf]
+    # محدودسازی امتیاز بین -100 تا +100
+    score = max(min(score, 100), -100)
+    return round(score, 2)
 
 # اتصال به دیتابیس
 conn = sqlite3.connect("data.db", check_same_thread=False)
@@ -90,7 +122,7 @@ def run_fetcher_loop():
                     # print(f"RSI  : {last_rsi:.2f}")
                     cursor.execute("INSERT INTO rsi_data (symbol_id, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
                                 (symbol_id, last_price, last_rsi,TIMEFRAME))
-                    conn.commit()
+                    # conn.commit()
                     
 
                     # انتخاب ستون مناسب بر اساس تایم‌فریم
@@ -101,6 +133,7 @@ def run_fetcher_loop():
                         "1h": "rsi_1h",
                         "4h": "rsi_4h"
                     }[TIMEFRAME]
+                    rsi_values[TIMEFRAME] = last_rsi
 
                     # اول اگه نبود اضافه کن
                     cursor.execute("INSERT OR IGNORE INTO market_info (symbol_id) VALUES (?)", (symbol_id,))
@@ -138,6 +171,10 @@ def run_fetcher_loop():
                         print(f"RSI is normal : {last_rsi:.2f} | "+TIMEFRAME)
                     time.sleep(1) 
                 # print("----------------------------------------------")
+                if rsi_values:
+                    score = calculate_score(rsi_values)
+                    cursor.execute("UPDATE market_info SET score=? WHERE symbol_id=?", (score, symbol_id))
+                    conn.commit()
 
             except Exception as e:
                 print("⚠️ Error:", e)

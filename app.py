@@ -16,7 +16,7 @@ def get_data():
         JOIN symbols AS s 
             ON m.symbol_id = s.id
         WHERE s.active = 1
-        ORDER BY ABS(m.rsi_1m - 50) DESC
+        ORDER BY ABS(score) DESC,ABS(m.rsi_1m - 50) DESC
 
     """)
     rows = cursor.fetchall()
@@ -30,17 +30,11 @@ def get_data():
     data = []
     for row in rows:
         updated_at = row["updated_at"]
-        
-
-
         updated_at_dt = datetime.strptime(updated_at, "%Y-%m-%d %H:%M:%S")
         updated_at_dt = updated_at_dt.replace(tzinfo=timezone.utc).astimezone(tz_tehran)
-
-
         if updated_at_dt:
             diff = now - updated_at_dt
             minutes = diff.total_seconds() / 60
-
             if minutes <= 2:
                 status = "✅"
                 color = "green"
@@ -68,6 +62,7 @@ def get_data():
             "rsi_1h": row["rsi_1h"],
             "rsi_4h": row["rsi_4h"],
             "price_change": row["price_change"],
+            "score": row["score"],
             "updated_at": dt_tehran.strftime("%Y-%m-%d %H:%M:%S"),
             "status": status,
             "color": color
@@ -129,6 +124,7 @@ def symbol_detail(symbol):
             m.rsi_1h,
             m.rsi_4h,
             m.price_change,
+            m.score,
             m.updated_at
         FROM market_info AS m
         JOIN symbols AS s 
