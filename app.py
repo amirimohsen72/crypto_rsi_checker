@@ -153,7 +153,6 @@ def symbol_detail(symbol):
 
         # 🔹 بررسی مقدار تغییر قیمت و فرمت آن
     price_change = data.get("price_change")
-    print(price_change)
     if price_change is not None:
         if price_change > 0:
             data["price_change_str"] = f"+{price_change:.4f}"
@@ -172,44 +171,152 @@ def symbol_detail(symbol):
     
     # گرفتن داده‌های نمودار برای هر تایم‌فریم
     chart_data = {}
-    timeframes = ["1m", "5m", "15m", "1h", "4h"]
-
-    for tf in timeframes:
-        if tf in ["1m", "5m", "15m"]:
-            # تایم‌فریم‌های کوتاه: همه رکوردها (مثلا 200 آخر)
-            query = """
-                SELECT timestamp, rsi, price
+    # timeframes = ["1m", "5m", "15m", "1h", "4h"]
+    
+    # 🔹 فقط 1m با کوئری جدید
+    query_1m = """
+        SELECT 
+            timestamp,
+            rsi,
+            price
+        FROM rsi_data
+        WHERE symbol_id = ? 
+            AND timeframe = '1m'
+            AND id IN (
+                SELECT MAX(id)
                 FROM rsi_data
-                WHERE symbol_id = ? AND timeframe = ?
-                ORDER BY timestamp DESC
-                LIMIT 200
-            """
-            cursor.execute(query, (symbol_id, tf))
-            results = cursor.fetchall()
-            results.reverse()
-        else:
-            # تایم‌فریم‌های بزرگ: گروپ‌بندی بر اساس start ساعت/چهار ساعت
-            query = f"""
-                SELECT 
-                    strftime('%Y-%m-%d %H:00:00', timestamp) AS grp_time,
-                    AVG(rsi) as rsi,
-                    AVG(price) as price
+                WHERE symbol_id = ? AND timeframe = '1m'
+                GROUP BY 
+                    strftime('%Y-%m-%d %H', timestamp),
+                    CAST(strftime('%M', timestamp) AS INTEGER) / 1
+            )
+        ORDER BY timestamp DESC
+        LIMIT 60
+    """
+    
+    cursor.execute(query_1m, (symbol_id, symbol_id))
+    results_1m = cursor.fetchall()
+    
+    results_1m.reverse()  # از قدیم به جدید
+    chart_data['1m'] = {
+        "timestamps": [row[0] for row in results_1m],
+        "rsi_values": [row[1] for row in results_1m],
+        "prices": [row[2] for row in results_1m]
+    }
+    # 🔹 5m - هر 5 دقیقه یه نقطه
+    query_5m = """
+        SELECT 
+            timestamp,
+            rsi,
+            price
+        FROM rsi_data
+        WHERE symbol_id = ? 
+            AND timeframe = '5m'
+            AND id IN (
+                SELECT MAX(id)
                 FROM rsi_data
-                WHERE symbol_id = ? AND timeframe = ?
-                GROUP BY grp_time
-                ORDER BY grp_time DESC
-                LIMIT 50
-            """
-            cursor.execute(query, (symbol_id, tf))
-            results = cursor.fetchall()
-            results.reverse()
+                WHERE symbol_id = ? AND timeframe = '5m'
+                GROUP BY 
+                    strftime('%Y-%m-%d %H', timestamp),
+                    CAST(strftime('%M', timestamp) AS INTEGER) / 5
+            )
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """
+    cursor.execute(query_5m, (symbol_id, symbol_id))
+    results_5m = cursor.fetchall()
+    results_5m.reverse()  # از قدیم به جدید
 
-        chart_data[tf] = {
-            "timestamps": [row[0] for row in results],
-            "rsi_values": [row[1] for row in results],
-            "prices": [row[2] for row in results]
-        }
+    chart_data['5m'] = {
+        "timestamps": [row[0] for row in results_5m],
+        "rsi_values": [row[1] for row in results_5m],
+        "prices": [row[2] for row in results_5m]
+    }
 
+    # 🔹 15m - هر 15 دقیقه یه نقطه
+    query_15m = """
+        SELECT 
+            timestamp,
+            rsi,
+            price
+        FROM rsi_data
+        WHERE symbol_id = ? 
+            AND timeframe = '15m'
+            AND id IN (
+                SELECT MAX(id)
+                FROM rsi_data
+                WHERE symbol_id = ? AND timeframe = '15m'
+                GROUP BY 
+                    strftime('%Y-%m-%d %H', timestamp),
+                    CAST(strftime('%M', timestamp) AS INTEGER) / 15
+            )
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """
+    cursor.execute(query_15m, (symbol_id, symbol_id))
+    results_15m = cursor.fetchall()
+    results_15m.reverse()  # از قدیم به جدید
+    chart_data['15m'] = {
+        "timestamps": [row[0] for row in results_15m],
+        "rsi_values": [row[1] for row in results_15m],
+        "prices": [row[2] for row in results_15m]
+    }
+
+    # 🔹 1h - هر 1 ساعت یه نقطه
+    query_1h = """
+        SELECT 
+            timestamp,
+            rsi,
+            price
+        FROM rsi_data
+        WHERE symbol_id = ? 
+            AND timeframe = '1h'
+            AND id IN (
+                SELECT MAX(id)
+                FROM rsi_data
+                WHERE symbol_id = ? AND timeframe = '1h'
+                GROUP BY 
+                    strftime('%Y-%m-%d %H', timestamp)
+            )
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """
+    cursor.execute(query_1h, (symbol_id, symbol_id))
+    results_1h = cursor.fetchall()
+    results_1h.reverse()  # از قدیم به جدید
+    chart_data['1h'] = {
+        "timestamps": [row[0] for row in results_1h],
+        "rsi_values": [row[1] for row in results_1h],
+        "prices": [row[2] for row in results_1h]
+    }
+    # 🔹 4h - هر 4 ساعت یه نقطه
+    query_4h = """
+        SELECT 
+            timestamp,
+            rsi,
+            price
+        FROM rsi_data
+        WHERE symbol_id = ? 
+            AND timeframe = '4h'
+            AND id IN (
+                SELECT MAX(id)
+                FROM rsi_data
+                WHERE symbol_id = ? AND timeframe = '4h'
+                GROUP BY 
+                    strftime('%Y-%m-%d', timestamp),
+                    CAST(strftime('%H', timestamp) AS INTEGER) / 4
+            )
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """
+    cursor.execute(query_4h, (symbol_id, symbol_id))
+    results_4h = cursor.fetchall()
+    results_4h.reverse()  # از قدیم به جدید
+    chart_data['4h'] = {
+        "timestamps": [row[0] for row in results_4h],
+        "rsi_values": [row[1] for row in results_4h],
+        "prices": [row[2] for row in results_4h]
+    }
     
     conn.close()
     return render_template("symbol_detail.html", data=data, chart_data=chart_data)
