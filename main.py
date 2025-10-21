@@ -5,6 +5,8 @@ import pandas as pd
 import ta
 import os
 import sqlite3
+import pytz
+from datetime import datetime
 
 
 
@@ -39,6 +41,59 @@ def get_active_symbols():
     symbols = cursor.fetchall()
     conn.close()
     return symbols
+
+def get_lastrsi_save_times(cursor, symbol_id):
+    """
+    یه بار همه آخرین timestamp‌ها رو برای همه تایم‌فریم‌ها میگیره
+    """
+    cursor.execute("""
+        SELECT 
+            timeframe,
+            MAX(timestamp) as last_time
+        FROM rsi_data
+        WHERE symbol_id = ?
+        GROUP BY timeframe
+    """, (symbol_id,))
+    print("get last rsi timeframe : "+ str(symbol_id))
+    results = cursor.fetchall()
+    
+    # تبدیل به دیکشنری برای دسترسی سریع
+    return {row[0]: row[1] for row in results}
+
+def is_allowed_to_save(last_save_times, timeframe):
+    """
+    چک میکنه که آیا مجاز به ذخیره هستیم یا نه
+    """
+    
+    # تعیین حد مجاز برای هر تایم‌فریم (به دقیقه)
+    intervals = {
+        "1m": 30,
+        "5m": 2,
+        "15m": 5,
+        "1h": 20,
+        "4h": 60
+    }
+    
+    # اگه تایم‌فریم توی دیکشنری نیست یا None هست، مجازه
+    if timeframe not in last_save_times or last_save_times[timeframe] is None:
+        return True
+    
+    # گرفتن آخرین زمان ذخیره
+    last_timestamp = last_save_times[timeframe]
+    last_time = datetime.strptime(last_timestamp, "%Y-%m-%d %H:%M:%S")
+    now = datetime.now()
+    # محاسبه اختلاف زمانی (به دقیقه)
+    time_diff = (now - last_time).total_seconds()
+    if (timeframe == "1m"):
+        return time_diff >= intervals.get("1m")
+
+    else :
+        # //به دقیقه
+        time_diff = time_diff / 60 
+        
+        # بررسی اینکه آیا زمان کافی گذشته
+        allowed_interval = intervals.get(timeframe, 5)
+        return time_diff >= allowed_interval
 
 def calculate_score(rsi_values):
     """
@@ -78,9 +133,11 @@ cursor = conn.cursor()
 
 
 def run_fetcher_loop():
+    tz_tehran = pytz.timezone("Asia/Tehran")
     global last_best_C, COUNT_BEST, last_rsi
     frequency =2222
     duration =200
+    countreq = 0
     while True:
         symbols = get_active_symbols()
 
@@ -98,78 +155,89 @@ def run_fetcher_loop():
                 row = cursor.fetchone()
 
                 for TIMEFRAME in TIMEFRAMES:
-                    # گرفتن کندل‌ها
-                    bars = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=200)
-                    df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                    last_save_times = get_lastrsi_save_times(cursor, symbol_id)
+                    if is_allowed_to_save(last_save_times, TIMEFRAME):
+                        countreq += 1
+                        
+                        # گرفتن کندل‌ها
+                        bars = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=200)
+                        df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
-                    df["RSI_EMA"] = ta.momentum.RSIIndicator(df["close"], window=14, fillna=False).rsi()  # ta خودش EMA استفاده میکنه
-                    # clear_console()
-                    
-                    # if last_rsi != None :
-                    #     print(f"last rsi : {last_rsi:.2f} \n -----------------")
-                    print(f"crypto name : {SYMBOL}" )
+                        df["RSI_EMA"] = ta.momentum.RSIIndicator(df["close"], window=14, fillna=False).rsi()  # ta خودش EMA استفاده میکنه
+                        # clear_console()
+                        
+                        # if last_rsi != None :
+                        #     print(f"last rsi : {last_rsi:.2f} \n -----------------")
+                        print(f"crypto name : {SYMBOL}" )
 
-                    df["RSI"] = ta.momentum.RSIIndicator(df["close"], window=14).rsi()
+                        df["RSI"] = ta.momentum.RSIIndicator(df["close"], window=14).rsi()
 
-                    last_price = df["close"].iloc[-1]
-                    last_rsi = round(df["RSI"].iloc[-1], 2)
-                    
-                    last_rsi_ema = df["RSI_EMA"].iloc[-1]
+                        last_price = df["close"].iloc[-1]
+                        last_rsi = round(df["RSI"].iloc[-1], 2)
+                        
+                        last_rsi_ema = df["RSI_EMA"].iloc[-1]
 
-                    # print(f"Price: {last_price:.4f}")
-                    # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
-                    # print(f"RSI EMA: {last_rsi_ema:.2f}")
-                    # print(f"RSI  : {last_rsi:.2f}")
-                    cursor.execute("INSERT INTO rsi_data (symbol_id, price, rsi,timeframe) VALUES (?, ?, ?, ?)",
-                                (symbol_id, last_price, last_rsi,TIMEFRAME))
-                    # conn.commit()
-                    
+                        # print(f"Price: {last_price:.4f}")
+                        # print(f"RSI Wilder: {last_rsi_wilder:.2f}")
+                        # print(f"RSI EMA: {last_rsi_ema:.2f}")
+                        # print(f"RSI  : {last_rsi:.2f}")
+                        now_tehran = datetime.now(tz_tehran).strftime("%Y-%m-%d %H:%M:%S")
 
-                    # انتخاب ستون مناسب بر اساس تایم‌فریم
-                    col_name = {
-                        "1m": "rsi_1m",
-                        "5m": "rsi_5m",
-                        "15m": "rsi_15m",
-                        "1h": "rsi_1h",
-                        "4h": "rsi_4h"
-                    }[TIMEFRAME]
-                    rsi_values[TIMEFRAME] = last_rsi
+                        cursor.execute(
+                            "INSERT INTO rsi_data (symbol_id, price, rsi, timeframe, timestamp) VALUES (?, ?, ?, ?, ?)",
+                            (symbol_id, last_price, last_rsi, TIMEFRAME, now_tehran)
+                        )
+                        # conn.commit()
+                        
 
-                    # اول اگه نبود اضافه کن
-                    cursor.execute("INSERT OR IGNORE INTO market_info (symbol_id) VALUES (?)", (symbol_id,))
+                        # انتخاب ستون مناسب بر اساس تایم‌فریم
+                        col_name = {
+                            "1m": "rsi_1m",
+                            "5m": "rsi_5m",
+                            "15m": "rsi_15m",
+                            "1h": "rsi_1h",
+                            "4h": "rsi_4h"
+                        }[TIMEFRAME]
+                        rsi_values[TIMEFRAME] = last_rsi
 
-                    if row and row[0] is not None:
-                        prev_price = row[0]
-                        price_change = round(last_price - prev_price, 4)
+                        # اول اگه نبود اضافه کن
+                        cursor.execute("INSERT OR IGNORE INTO market_info (symbol_id) VALUES (?)", (symbol_id,))
+
+                        if row and row[0] is not None:
+                            prev_price = row[0]
+                            price_change = round(last_price - prev_price, 4)
+                        else:
+                            price_change = 0
+                        # بعد ستون مربوطه رو آپدیت کن
+                        cursor.execute(f"""
+                            UPDATE market_info
+                            SET price=?, {col_name}=?, price_change=?, updated_at=CURRENT_TIMESTAMP 
+                            WHERE symbol_id=?
+                        """, (last_price, last_rsi, price_change, symbol_id))
+
+                        conn.commit()
+                        # هشدار هم میشه اضافه کرد
+                        if last_rsi > 75 :
+                            COUNT_BEST +=1
+                            winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
+                            print("🚨 RSI is high! "+TIMEFRAME)
+                            print(f"Price: {last_price:.4f}")
+                            print(f"RSI  : {last_rsi:.2f}")
+                            last_best_C += f'{SYMBOL}    '
+
+                        elif last_rsi < 30 :
+                            COUNT_BEST+=1
+                            winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
+                            print("📉 RSI is low! " +TIMEFRAME)
+                            print(f"Price: {last_price:.4f}")
+                            print(f"RSI  : {last_rsi:.2f}")
+                            last_best_C += f'{SYMBOL}   '
+                        else :
+                            print(f"RSI is normal : {last_rsi:.2f} | "+TIMEFRAME)
+                        time.sleep(1) 
                     else:
-                        price_change = 0
-                    # بعد ستون مربوطه رو آپدیت کن
-                    cursor.execute(f"""
-                        UPDATE market_info
-                        SET price=?, {col_name}=?, price_change=?, updated_at=CURRENT_TIMESTAMP 
-                        WHERE symbol_id=?
-                    """, (last_price, last_rsi, price_change, symbol_id))
-
-                    conn.commit()
-                    # هشدار هم میشه اضافه کرد
-                    if last_rsi > 75 :
-                        COUNT_BEST +=1
-                        winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
-                        print("🚨 RSI is high! "+TIMEFRAME)
-                        print(f"Price: {last_price:.4f}")
-                        print(f"RSI  : {last_rsi:.2f}")
-                        last_best_C += f'{SYMBOL}    '
-
-                    elif last_rsi < 30 :
-                        COUNT_BEST+=1
-                        winsound.Beep(frequency, duration) # frequency in Hz, duration in milliseconds
-                        print("📉 RSI is low! " +TIMEFRAME)
-                        print(f"Price: {last_price:.4f}")
-                        print(f"RSI  : {last_rsi:.2f}")
-                        last_best_C += f'{SYMBOL}   '
-                    else :
-                        print(f"RSI is normal : {last_rsi:.2f} | "+TIMEFRAME)
-                    time.sleep(1) 
+                        print(" --------------- not need to fetch data because we have data in this time frame")
+                    print("count request : "+ str(countreq))
                 # print("----------------------------------------------")
                 if rsi_values:
                     score = calculate_score(rsi_values)
