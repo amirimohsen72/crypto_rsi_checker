@@ -10,8 +10,7 @@ from datetime import datetime, timedelta
 
 
 
-# SYMBOL = "MYX/USDT:USDT"
-# TIMEFRAME = "1m"
+
 COUNT_BEST = 0
 SLEEP_INTERVAL = 7   # 300 ثانیه = 5 دقیقه
 last_rsi = None
@@ -55,7 +54,6 @@ def get_lastrsi_save_times(cursor, symbol_id):
         WHERE symbol_id = ?
         GROUP BY timeframe
     """, (symbol_id,))
-    print("get last rsi timeframe : "+ str(symbol_id))
     results = cursor.fetchall()
     
     # تبدیل به دیکشنری برای دسترسی سریع
@@ -158,7 +156,7 @@ def is_allowed_to_save(last_save_times, timeframe):
     # گرفتن آخرین زمان ذخیره
     last_timestamp = last_save_times[timeframe]
     last_time = datetime.strptime(last_timestamp, "%Y-%m-%d %H:%M:%S")
-    now = datetime.now()
+    now = datetime.now(tz_tehran)
     # محاسبه اختلاف زمانی (به دقیقه)
     time_diff = (now - last_time).total_seconds()
     if (timeframe == "1m"):
@@ -241,10 +239,8 @@ def run_fetcher_loop():
                         df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
                         df["RSI_EMA"] = ta.momentum.RSIIndicator(df["close"], window=14, fillna=False).rsi()  # ta خودش EMA استفاده میکنه
-                        # clear_console()
                         
-                        # if last_rsi != None :
-                        #     print(f"last rsi : {last_rsi:.2f} \n -----------------")
+
                         print(f"crypto name : {SYMBOL}" )
 
                         df["RSI"] = ta.momentum.RSIIndicator(df["close"], window=14).rsi()
@@ -271,7 +267,6 @@ def run_fetcher_loop():
                             "INSERT INTO rsi_data (symbol_id, price, rsi, timeframe, timestamp,rsi_change ,rsi_trend ) VALUES (?, ?, ?, ?, ?,?,?)",
                             (symbol_id, last_price, last_rsi, TIMEFRAME, now_tehran,rsi_change ,direction )
                         )
-                        # conn.commit()
                         
 
                         # انتخاب ستون مناسب بر اساس تایم‌فریم
