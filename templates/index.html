@@ -38,27 +38,27 @@
             {% if row["rsi_1m"] < 30 %}rsi-low
             {% elif row["rsi_1m"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
-        ">{{ row["rsi_1m"] }}</td>
+        ">{{ row["rsi_1m"] }} - {{ row["rsi_trend_1m"] }}</td>
             <td class="
             {% if row["rsi_5m"] < 30 %}rsi-low
             {% elif row["rsi_5m"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
-        ">{{ row["rsi_5m"] }}</td>
+        ">{{ row["rsi_5m"] }} - {{row["rsi_trend_5m"]}}</td>
             <td class="
             {% if row["rsi_15m"] < 30 %}rsi-low
             {% elif row["rsi_15m"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
-        ">{{ row["rsi_15m"] }}</td>
+        ">{{ row["rsi_15m"] }} - {{row["rsi_trend_15m"]}}</td>
             <td class="
             {% if row["rsi_1h"] < 30 %}rsi-low
             {% elif row["rsi_1h"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
-        ">{{ row["rsi_1h"] }}</td>
+        ">{{ row["rsi_1h"] }} - {{row["rsi_trend_1h"]}}</td>
             <td class="
             {% if row["rsi_4h"] < 30 %}rsi-low
             {% elif row["rsi_4h"] > 70 %}rsi-high
             {% else %}rsi-mid{% endif %}
-        ">{{ row["rsi_4h"] }}</td>
+        ">{{ row["rsi_4h"] }} - {{row["rsi_trend_4h"]}}</td>
             <td  style="color: {% if row.score < 0%}red{% elif row.score > 0 %}green{% endif %}" > {{ row.score }} {% if row.score < 0%} (S){% elif row.score > 0 %} (L){% endif %}</td>
             <td style="background-color: {{ row.color }};" >{{ row["updated_at"] }} {{ row.status }}</td>
         </tr>

@@ -35,22 +35,29 @@
                 <tr>
                     <th>تایم‌فریم</th>
                     <th>RSI</th>
+                    <th> روند</th>
+                    <th>تغییرات</th>
+                    <th>چارت</th>
                 </tr>
             </thead>
             <tbody>
                 {% set timeframes = [
-                    ('1m', '1 دقیقه', data.rsi_1m),
-                    ('5m', '5 دقیقه', data.rsi_5m),
-                    ('15m', '15 دقیقه', data.rsi_15m),
-                    ('1h', '1 ساعت', data.rsi_1h),
-                    ('4h', '4 ساعت', data.rsi_4h)
+                    ('1m', '1 دقیقه', data.rsi_1m, data.rsi_trend_1m, data.rsi_change_1m ),
+                    ('5m', '5 دقیقه', data.rsi_5m, data.rsi_trend_5m, data.rsi_change_5m ),
+                    ('15m', '15 دقیقه', data.rsi_15m, data.rsi_trend_15m, data.rsi_change_15m ),
+                    ('1h', '1 ساعت', data.rsi_1h, data.rsi_trend_1h, data.rsi_change_1h ),
+                    ('4h', '4 ساعت', data.rsi_4h, data.rsi_trend_4h , data.rsi_change_4h )
                 ] %}
-                {% for tf_key, tf_label, rsi_val in timeframes %}
+                {% for tf_key, tf_label, rsi_val,rsi_trend , rsi_change in timeframes %}
 
                 <tr>
                     <td>{{ tf_label }}</td>
                     <td class="{% if rsi_val > 70 %}red{% elif rsi_val < 30 %}green{% endif %}">
                         {{ "%.2f"|format(rsi_val) if rsi_val else '-' }}
+                    </td>
+                    <td>{{ rsi_trend }}</td>
+                    <td class="{% if rsi_change > 0 %}green{% elif rsi_change < 0 %}red{% endif %}">
+                        {{ "%.2f"|format(rsi_change) if rsi_change else '-' }}
                     </td>
                     <td><div class="chart-container">
                         <canvas id="chart-{{ tf_key }}"></canvas>
