@@ -6,7 +6,7 @@ import ta
 import os
 import sqlite3
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 
@@ -16,6 +16,7 @@ COUNT_BEST = 0
 SLEEP_INTERVAL = 7   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 last_best_C = ""
+tz_tehran = pytz.timezone("Asia/Tehran")
 
 exchange = ccxt.bybit({
     'options': {'defaultType': 'future'}
@@ -59,6 +60,82 @@ def get_lastrsi_save_times(cursor, symbol_id):
     
     # تبدیل به دیکشنری برای دسترسی سریع
     return {row[0]: row[1] for row in results}
+
+
+def get_previous_rsi(cursor, symbol_id, timeframe):
+    """
+    برمی‌گردونه آخرین مقدار RSI از تایم‌فریم قبلی در بازه [target ± tolerance]
+    خروجی: dict با فیلدهای rsi، timestamp یا None اگه چیزی پیدا نشد
+    """
+    intervals = {
+        "1m":  {"target": 1,   "tolerance": 0.5},   # ±30 ثانیه
+        "5m":  {"target": 5,   "tolerance": 2},     # ±2 دقیقه
+        "15m": {"target": 15,  "tolerance": 5},
+        "1h":  {"target": 60,  "tolerance": 15},
+        "4h":  {"target": 240, "tolerance": 60}
+    }
+
+    cfg = intervals.get(timeframe, {"target": 5, "tolerance": 2})
+
+    # هدف: زمان تقریبی بازه قبلی
+    target_time = datetime.now(tz_tehran) - timedelta(minutes=cfg["target"])
+    min_time = target_time - timedelta(minutes=cfg["tolerance"])
+    max_time = target_time + timedelta(minutes=cfg["tolerance"])
+    
+
+    # جست‌وجو در بازه مجاز
+    query = """
+        SELECT rsi, timestamp 
+        FROM rsi_data
+        WHERE symbol_id = ? AND timeframe = ?
+        AND timestamp BETWEEN ? AND ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """
+    cursor.execute(query, (
+        symbol_id,
+        timeframe,
+        min_time.strftime("%Y-%m-%d %H:%M:%S"),
+        max_time.strftime("%Y-%m-%d %H:%M:%S")
+    ))
+    row = cursor.fetchone()
+
+    # اگر در بازه چیزی پیدا نشد، نزدیک‌ترین رکورد ممکن رو بیار
+    if not row:
+        fallback_query = """
+            SELECT rsi, timestamp 
+            FROM rsi_data
+            WHERE symbol_id = ? AND timeframe = ?
+            ORDER BY ABS((julianday(?) - julianday(timestamp)) * 24 * 60)
+            LIMIT 1
+        """
+        cursor.execute(fallback_query, (
+            symbol_id,
+            timeframe,
+            datetime.now(tz_tehran).strftime("%Y-%m-%d %H:%M:%S")
+        ))
+        row = cursor.fetchone()
+
+    if row:
+        return {"rsi": row[0], "timestamp": row[1]}
+    return None
+
+def detect_rsi_trend(current_rsi, previous_rsi, threshold=0.1 ):
+    """
+    تشخیص جهت روند RSI
+    threshold: حداقل تغییر معنادار (پیش‌فرض 2 واحد)
+    """
+    if previous_rsi is None:
+        return "unknown", 0
+    
+    change = current_rsi - previous_rsi
+    
+    if (abs(change) < threshold) or (change == 0):
+        return "flat", change
+    elif change > 0:
+        return "up", change
+    else:
+        return "down", change
 
 def is_allowed_to_save(last_save_times, timeframe):
     """
@@ -183,9 +260,16 @@ def run_fetcher_loop():
                         # print(f"RSI  : {last_rsi:.2f}")
                         now_tehran = datetime.now(tz_tehran).strftime("%Y-%m-%d %H:%M:%S")
 
+                        prev_data = get_previous_rsi(cursor, symbol_id, TIMEFRAME)
+                        if prev_data:
+                            prev_rsi = prev_data["rsi"]
+                        else : prev_rsi = None
+
+                        direction, rsi_change = detect_rsi_trend(last_rsi, prev_rsi, threshold=0.1)
+
                         cursor.execute(
-                            "INSERT INTO rsi_data (symbol_id, price, rsi, timeframe, timestamp) VALUES (?, ?, ?, ?, ?)",
-                            (symbol_id, last_price, last_rsi, TIMEFRAME, now_tehran)
+                            "INSERT INTO rsi_data (symbol_id, price, rsi, timeframe, timestamp,rsi_change ,rsi_trend ) VALUES (?, ?, ?, ?, ?,?,?)",
+                            (symbol_id, last_price, last_rsi, TIMEFRAME, now_tehran,rsi_change ,direction )
                         )
                         # conn.commit()
                         

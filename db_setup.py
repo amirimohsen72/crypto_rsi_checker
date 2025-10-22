@@ -70,6 +70,14 @@ def create_tables():
     if "score" not in columns:
         cursor.execute("ALTER TABLE market_info ADD COLUMN score REAL DEFAULT 0")
 
+    # بررسی وجود ستون price_change قبل از اضافه کردن
+    cursor.execute("PRAGMA table_info(rsi_data)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "rsi_trend" not in columns:
+        cursor.execute("ALTER TABLE rsi_data ADD COLUMN rsi_trend TEXT; -- 'up', 'down', 'neutral'")
+    if "rsi_change" not in columns:
+        cursor.execute("ALTER TABLE rsi_data ADD COLUMN rsi_change REAL; -- مقدار تغییر")
+
     cursor.execute("SELECT COUNT(*) FROM symbols")
     count = cursor.fetchone()[0]
 
