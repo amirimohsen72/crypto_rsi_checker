@@ -277,6 +277,22 @@ def run_fetcher_loop():
                             "1h": "rsi_1h",
                             "4h": "rsi_4h"
                         }[TIMEFRAME]
+                        col_trend = {
+                            "1m": "rsi_trend_1m",
+                            "5m": "rsi_trend_5m",
+                            "15m": "rsi_trend_15m",
+                            "1h": "rsi_trend_1h",
+                            "4h": "rsi_trend_4h"
+                        }[TIMEFRAME]
+                        
+                        col_change = {
+                            "1m": "rsi_change_1m",
+                            "5m": "rsi_change_5m",
+                            "15m": "rsi_change_15m",
+                            "1h": "rsi_change_1h",
+                            "4h": "rsi_change_4h"
+                        }[TIMEFRAME]
+
                         rsi_values[TIMEFRAME] = last_rsi
 
                         # اول اگه نبود اضافه کن
@@ -288,11 +304,13 @@ def run_fetcher_loop():
                         else:
                             price_change = 0
                         # بعد ستون مربوطه رو آپدیت کن
+
                         cursor.execute(f"""
                             UPDATE market_info
-                            SET price=?, {col_name}=?, price_change=?, updated_at=CURRENT_TIMESTAMP 
+                            SET price=?, {col_name}=?, {col_trend}=?, {col_change}=?, price_change=?, updated_at=CURRENT_TIMESTAMP 
                             WHERE symbol_id=?
-                        """, (last_price, last_rsi, price_change, symbol_id))
+                        """, (last_price, last_rsi, direction, rsi_change, price_change, symbol_id))
+
 
                         conn.commit()
                         # هشدار هم میشه اضافه کرد

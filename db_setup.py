@@ -69,6 +69,28 @@ def create_tables():
         cursor.execute("ALTER TABLE market_info ADD COLUMN price_change REAL DEFAULT 0")
     if "score" not in columns:
         cursor.execute("ALTER TABLE market_info ADD COLUMN score REAL DEFAULT 0")
+    if "rsi_trend_1m" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_trend_1m TEXT")
+    if "rsi_trend_5m" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_trend_5m TEXT")
+    if "rsi_trend_15m" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_trend_15m TEXT")
+    if "rsi_trend_1h" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_trend_1h TEXT")
+    if "rsi_trend_4h" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_trend_4h TEXT")
+    
+    if "rsi_change_1m" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_1m REAL")
+    if "rsi_change_5m" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_5m REAL")
+    if "rsi_change_15m" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_15m REAL")
+    if "rsi_change_1h" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_1h REAL")
+    if "rsi_change_4h" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_4h REAL")
+    
 
     # بررسی وجود ستون price_change قبل از اضافه کردن
     cursor.execute("PRAGMA table_info(rsi_data)")
