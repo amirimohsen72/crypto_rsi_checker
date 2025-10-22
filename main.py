@@ -156,7 +156,7 @@ def is_allowed_to_save(last_save_times, timeframe):
     # گرفتن آخرین زمان ذخیره
     last_timestamp = last_save_times[timeframe]
     last_time = datetime.strptime(last_timestamp, "%Y-%m-%d %H:%M:%S")
-    now = datetime.now(tz_tehran)
+    now = datetime.now()
     # محاسبه اختلاف زمانی (به دقیقه)
     time_diff = (now - last_time).total_seconds()
     if (timeframe == "1m"):
