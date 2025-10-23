@@ -90,6 +90,8 @@ def create_tables():
         cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_1h REAL")
     if "rsi_change_4h" not in columns:
         cursor.execute("ALTER TABLE market_info ADD COLUMN rsi_change_4h REAL")
+    if "advance_score" not in columns:
+        cursor.execute("ALTER TABLE market_info ADD COLUMN advance_score REAL")
     
 
     # بررسی وجود ستون price_change قبل از اضافه کردن

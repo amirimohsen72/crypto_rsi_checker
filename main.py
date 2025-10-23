@@ -7,6 +7,7 @@ import os
 import sqlite3
 import pytz
 from datetime import datetime, timedelta
+import scoring  # ✨ import کردن ماژول
 
 
 
@@ -226,8 +227,13 @@ def run_fetcher_loop():
                 
                 SYMBOL = future_symbol
                 print(SYMBOL)
+                
                 cursor.execute("SELECT price FROM market_info WHERE symbol_id=?", (symbol_id,))
                 row = cursor.fetchone()
+
+                rsi_values = {}
+                rsi_trends = {}
+                rsi_changes = {}
 
                 for TIMEFRAME in TIMEFRAMES:
                     last_save_times = get_lastrsi_save_times(cursor, symbol_id)
@@ -294,6 +300,8 @@ def run_fetcher_loop():
                         }[TIMEFRAME]
 
                         rsi_values[TIMEFRAME] = last_rsi
+                        rsi_trends[TIMEFRAME] = direction
+                        rsi_changes[TIMEFRAME] = rsi_change 
 
                         # اول اگه نبود اضافه کن
                         cursor.execute("INSERT OR IGNORE INTO market_info (symbol_id) VALUES (?)", (symbol_id,))
@@ -339,6 +347,18 @@ def run_fetcher_loop():
                 if rsi_values:
                     score = calculate_score(rsi_values)
                     cursor.execute("UPDATE market_info SET score=? WHERE symbol_id=?", (score, symbol_id))
+                    conn.commit()
+                if rsi_values and rsi_trends and rsi_changes:
+                    advanced_score = scoring.calculate_advanced_score(
+                        rsi_values,
+                        rsi_trends,
+                        rsi_changes
+                    )
+                    # آپدیت در دیتابیس
+                    cursor.execute(
+                        "UPDATE market_info SET advance_score=? WHERE symbol_id=?",
+                        (advanced_score, symbol_id)
+                    )
                     conn.commit()
 
             except Exception as e:

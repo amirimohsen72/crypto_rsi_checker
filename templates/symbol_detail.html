@@ -30,6 +30,13 @@
         <p style="color: {% if data.score < 0%}red{% elif data.score > 0 %}green{% endif %}">{% if data.score < 0%}پیشنهاد بررسی معامله شورت{% elif data.score > 0 %}پیشنهاد بررسی معامله لانگ{%else %}محدوده خنثی{% endif %}</p>
         <p>آخرین بروزرسانی: {{ data.updated_at }}</p>
 
+        <p>
+            <h2>سیگنال از روی امتیازات :</h2>
+            <span class="{{data.score_class}}">{{data.score_label}}</span>
+            <br>
+            <span>{{data.score_description}}</span>
+        </p>
+
         <table>
             <thead>
                 <tr>

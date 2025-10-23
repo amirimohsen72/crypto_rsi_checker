@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import Flask, render_template
 import sqlite3
 import pytz  # نصب کن: pip install pytz
+import scoring  # ✨ import کردن ماژول
 
 app = Flask(__name__)
 tehran_tz = pytz.timezone("Asia/Tehran")
@@ -16,7 +17,7 @@ def get_data():
         JOIN symbols AS s 
             ON m.symbol_id = s.id
         WHERE s.active = 1
-        ORDER BY ABS(score) DESC,ABS(m.rsi_1m - 50) DESC
+        ORDER BY ABS(advance_score) DESC,ABS(score) DESC, ABS(m.rsi_1m - 50) DESC
 
     """)
     rows = cursor.fetchall()
@@ -74,6 +75,7 @@ def get_data():
             "rsi_change_4h": row["rsi_change_4h"],
             "price_change": row["price_change"],
             "score": row["score"],
+            "advance_score": row["advance_score"],
             "updated_at": dt_tehran.strftime("%Y-%m-%d %H:%M:%S"),
             "status": status,
             "color": color
@@ -105,6 +107,14 @@ def localtime_filter(utc_string):
 @app.route("/")
 def index():
     data = get_data()
+        # اضافه کردن label برای هر ردیف
+    for item in data:
+        label, color, css_class = scoring.get_score_label(item['advance_score'])
+        item['score_label'] = label
+        item['score_color'] = color
+        item['score_class'] = css_class
+        item['score_description'] = scoring.get_score_description(item['advance_score'])
+    
     return render_template("index.html", data=data)
 
 @app.route("/list2")
@@ -138,7 +148,7 @@ def symbol_detail(symbol):
             m.rsi_1h, m.rsi_trend_1h, m.rsi_change_1h,
             m.rsi_4h, m.rsi_trend_4h, m.rsi_change_4h,
             m.price_change,
-            m.score,
+            m.score, m.advance_score,
             m.updated_at
         FROM market_info AS m
         JOIN symbols AS s 
@@ -178,6 +188,13 @@ def symbol_detail(symbol):
         data["price_change_str"] = "-"
         data["color"] = "gray"
 
+    if data['advance_score']:
+        label, color, css_class = scoring.get_score_label(data['advance_score'])
+        data['score_label'] = label
+        data['score_color'] = color
+        data['score_class'] = css_class
+        data['score_description'] = scoring.get_score_description(data['advance_score'])
+    
     symbol_id = data['symbol_id']
     
     # گرفتن داده‌های نمودار برای هر تایم‌فریم
