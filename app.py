@@ -398,7 +398,6 @@ def show_signals(symbol_name=None):
             base_query += " AND (s.advance_score >= 40 OR s.advance_score <= -40)"
 
     base_query += " ORDER BY time DESC LIMIT 100"
-    print(base_query)
     cursor.execute(base_query, params)
     rows = cursor.fetchall()
     conn.close()

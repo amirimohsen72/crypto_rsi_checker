@@ -5,6 +5,7 @@
 
 from datetime import datetime
 import json
+import winsound
 import pytz
 
 tz_tehran = pytz.timezone("Asia/Tehran")
@@ -215,6 +216,10 @@ def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_tre
             "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?)",
             (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label,now)
         )
+
+        if advanced_score >30 or advanced_score<-30:
+            freq = 1600 
+            winsound.Beep(freq, 400)
         print(f"✅ signal saved: {SYMBOL} - {signal_label}")
         return True
         # conn.commit()
