@@ -354,11 +354,13 @@ def run_fetcher_loop():
                         rsi_trends,
                         rsi_changes
                     )
+
                     # آپدیت در دیتابیس
                     cursor.execute(
                         "UPDATE market_info SET advance_score=? WHERE symbol_id=?",
                         (advanced_score, symbol_id)
                     )
+                    scoring.save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
                     conn.commit()
 
             except Exception as e:

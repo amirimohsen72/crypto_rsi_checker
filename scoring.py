@@ -3,6 +3,14 @@
 """
 
 
+from datetime import datetime
+import json
+import pytz
+
+tz_tehran = pytz.timezone("Asia/Tehran")
+
+
+
 def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes):
     """
     محاسبه امتیاز پیشرفته با در نظر گرفتن RSI، روند و قدرت تغییر
@@ -167,6 +175,50 @@ def calculate_convergence_score(rsi_trends):
             return -50
     
     return 0
+
+
+
+
+def allowed_save(score):
+    """
+     بررسی محدوده های جذاب  = ذخیره
+    
+    Returns:
+        True , False
+    """
+    if score >= 70:
+        return True #خرید قوی
+    elif score >= 40:
+        return True #خرید
+    elif score >= 10:
+        return True #خرید ضعیف"
+    elif score >= -10:
+        return False #خنثی
+    elif score >= -40:
+        return True #فروش ضعیف"
+    elif score >= -70:
+        return True #فروش
+    else:
+        return True #فروش قوی"
+
+
+
+def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score):
+    """
+    ذخیره سیگنال های مهم
+    """
+    # save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
+    if allowed_save(advanced_score) :
+        signal_label = get_score_description(advanced_score)
+        now = datetime.now(tz_tehran)
+        c_cursor.execute(
+            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?)",
+            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label,now)
+        )
+        print(f"✅ signal saved: {SYMBOL} - {signal_label}")
+        return True
+        # conn.commit()
+    return False
 
 
 def get_score_label(score):

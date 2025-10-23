@@ -122,6 +122,31 @@ def create_tables():
             VALUES (?, ?, ?, ?, ?)
         """, default_symbols)
 
+   
+    
+    # جدول ارزها (دینامیک)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS signals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol_id INTEGER NOT NULL,
+    symbol_name TEXT ,
+    score REAL,
+    advance_score REAL,
+    signal_type TEXT, -- 'buy', 'sell', 'strong_buy', 'strong_sell'
+    signal_label TEXT,
+    rsi_values TEXT, -- JSON format
+    price REAL NOT NULL,
+    time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (symbol_id) REFERENCES symbols (id)
+)
+    """)
+
+    cursor.execute(""" CREATE INDEX IF NOT EXISTS idx_signals_time ON signals(time); """)
+
+    cursor.execute("""CREATE INDEX IF NOT EXISTS idx_signals_symbol_id ON signals(symbol_id);  """)
+
+    cursor.execute("""CREATE INDEX IF NOT EXISTS idx_signals_score ON signals(advance_score);     """)
+ 
 
     conn.commit()
 
