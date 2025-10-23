@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>signals Monitor</title>
+    <style>
+        body { font-family: Arial; background: #f2f2f2; padding: 20px; }
+        table { width: 80%; margin: auto; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+        th { background: #333; color: white; }
+        .rsi-high { color: #ff4c4c; font-weight: bold; }  /* RSI بالا */
+        .rsi-low { color: #00bfff; font-weight: bold; }    /* RSI پایین */
+        .rsi-mid { color: #877d7d; }                      /* RSI نرمال */
+        .strong-buy { background: #d4edda; border-left: 4px solid #28a745; }
+        .buy { background: #f8f9fa; }
+        .neutral { background: #ffffff; }
+        .sell { background: #fff3cd; }
+        .strong-sell { background: #f8d7da; border-left: 4px solid #dc3545; }
+        
+        /* انیمیشن برای سیگنال‌های قوی */
+        @keyframes pulse-green {
+            0% { background-color: #d4edda; }
+            50% { background-color: #c3e6cb; }
+            100% { background-color: #d4edda; }
+        }
+        
+        @keyframes pulse-red {
+            0% { background-color: #f8d7da; }
+            50% { background-color: #f1b0b7; }
+            100% { background-color: #f8d7da; }
+        }
+        
+        .signal-strong {
+            animation: pulse-green 2s infinite;
+        }
+        
+        .signal-strong-sell {
+            animation: pulse-red 2s infinite;
+        }
+        
+        .buy-text { color: green; font-weight: bold; }
+        .sell-text { color: red; font-weight: bold; }
+        .neutral-text { color: gray; }
+        .yellow {color: yellowgreen;}
+    </style>
+<!-- <meta http-equiv="refresh" content="180"> -->
+
+</head>
+<body>
+    <h2 style="text-align:center">📊 Signal Monitor {% if symbol_name %} - {{ symbol_name }}{% endif %}</h2>
+    
+     
+    {% if not data %}
+        <p style="text-align:center; color: red;">هیچ سیگنالی یافت نشد</p>
+    {% else %}
+
+    <table>
+        <tr>
+            <th>#</th>
+            <th>نماد</th>
+            <th>قیمت</th>
+            <th>امتیاز</th>
+            <th>امتیاز پیشرفته</th>
+            <th>سیگنال</th>
+            <th>RSI‌ها</th>
+            <th>زمان</th>
+        </tr>
+        {% for row in data %}
+        <tr class="
+        {% if row[6] >= 70 %}strong-buy signal-strong
+        {% elif row[6] >= 40 %}buy
+        {% elif row[6] <= -70 %}strong-sell signal-strong-sell
+        {% elif row[6] <= -40 %}sell
+        {% elif row[6] <= -30 %}yellow
+        {% elif row[6] >= 30 %}yellow
+        {% else %}neutral{% endif %}
+    ">
+            <td>{{ row[0] }}</td> 
+            
+            <td ><a href="/signal/{{ row[3] }}">{{ row[3] }}</a></td> 
+            <td>{{ row[4] }}</td> 
+            <td>{{ row[5] }}</td> 
+            <td>{{ row[6] }}{% if row[5] >= 70 %} 💚{% endif %}
+                {% if row[5] <= -70 %} 💔{% endif %}</td> 
+            <td>{{ row[7] }}</td> 
+
+                <td>{{ row[8] }}  <!-- signal_label -->
+            </td>
+            <td>{{ row[9][0:16]  }} </td>  <!-- timestamp -->
+
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <script>
+        setTimeout(() => {
+          window.location.reload();
+        }, 60000); // هر 3 دقیقه = 180,000 میلی‌ثانیه
+      </script>
+</body>
+</html>

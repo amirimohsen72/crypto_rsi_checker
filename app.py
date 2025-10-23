@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 import sqlite3
 import pytz  # نصب کن: pip install pytz
 import scoring  # ✨ import کردن ماژول
@@ -348,3 +348,60 @@ def symbol_detail(symbol):
     
     conn.close()
     return render_template("symbol_detail.html", data=data, chart_data=chart_data)
+
+
+
+
+@app.route('/signal')
+@app.route('/signal/<symbol_name>')
+def show_signals(symbol_name=None):
+    """
+    نمایش سیگنال‌ها
+    اگر symbol داده شود، فقط همان ارز فیلتر می‌شود.
+    """
+    conn = sqlite3.connect("data.db")
+    cursor = conn.cursor()
+    strong_only = request.args.get('best')
+    score = request.args.get('score')
+    if score and score.isdigit():
+        score = int(request.args.get('score'))
+
+    base_query = """
+          SELECT s.id, s.symbol_id,
+    s.symbol_name,
+    sym.base_symbol,
+    s.price,
+    s.score,
+    s.advance_score,
+    s.signal_label,
+    s.rsi_values,
+    s.time,
+    s.signal_type, sym.base_symbol 
+            FROM signals s
+            LEFT JOIN symbols sym ON s.symbol_id = sym.id
+            WHERE 1=1     """
+    params = []  # اصلاح: استفاده از list به جای tuple
+    if symbol_name:
+        base_query += " AND s.symbol_name LIKE ?"
+        params.append(f"%{symbol_name}%")
+
+    if score:
+        base_query += " AND (s.advance_score >= ? OR s.advance_score <= ?)"
+        params.extend([score, -score])
+
+    if strong_only and strong_only.isdigit():
+        if strong_only == '2':
+            base_query += " AND (s.advance_score >= 30 OR s.advance_score <= -30)"
+        elif strong_only == '3':
+            base_query += " AND (s.advance_score >= 25 OR s.advance_score <= -25)"
+        else :
+            base_query += " AND (s.advance_score >= 40 OR s.advance_score <= -40)"
+
+    base_query += " ORDER BY time DESC LIMIT 100"
+    print(base_query)
+    cursor.execute(base_query, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+
+    return render_template("crypto_signal.html", data=rows, symbol_name=symbol_name)
