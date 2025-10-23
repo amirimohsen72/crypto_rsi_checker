@@ -62,7 +62,7 @@
         ">{{ row["rsi_4h"] }} - {{row["rsi_trend_4h"]}}</td>
             <td  style="color: {% if row.score < 0%}red{% elif row.score > 0 %}green{% endif %}" > {{ row.score }} {% if row.score < 0%} (S){% elif row.score > 0 %} (L){% endif %}</td>
             <td style="background-color: {{ row.color }};" >{{ row["updated_at"] }} {{ row.status }}</td>
-            <td style="background-color: {{ row.score_color }};" >{{ row["score_label"] }}</td>
+            <td style="background-color: {{ row.score_color }};" >{{ row["score_label"] }} ({{row.advance_score}})</td>
 
 
         </tr>
