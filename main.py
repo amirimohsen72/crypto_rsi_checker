@@ -13,7 +13,7 @@ import scoring  # ✨ import کردن ماژول
 
 
 COUNT_BEST = 0
-SLEEP_INTERVAL = 7   # 300 ثانیه = 5 دقیقه
+SLEEP_INTERVAL = 2   # 300 ثانیه = 5 دقیقه
 last_rsi = None
 last_best_C = ""
 tz_tehran = pytz.timezone("Asia/Tehran")
@@ -370,7 +370,7 @@ def run_fetcher_loop():
             time.sleep(SLEEP_INTERVAL) 
         
         clear_console()
-    time.sleep(7) 
+    time.sleep(1) 
 if __name__ == "__main__":
     run_fetcher_loop()
  

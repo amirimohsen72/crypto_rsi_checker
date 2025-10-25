@@ -26,14 +26,16 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes):
     """
     total_score = 0
     # وزن هر تایم‌فریم
+
+        # وزن‌ها برای ترید کوتاه‌مدت
     timeframe_weights = {
-        "1m": 0.35,
-        "5m": 0.30,
-        "15m": 0.20,
-        "1h": 0.10,
-        "4h": 0.05
+        "1m": 0.40,   # خیلی مهم برای اسکالپ
+        "5m": 0.30,   # مهم
+        "15m": 0.20,  # متوسط
+        "1h": 0.07,   # کمتر مهم
+        "4h": 0.03    # مرجع کلی
     }
-    
+
     # وزن هر فاکتور
     factor_weights = {
         "rsi": 0.40,
@@ -72,12 +74,79 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes):
     
     #  امتیاز همگرایی
     convergence_score = calculate_convergence_score(rsi_trends)
+
     total_score += convergence_score * factor_weights["convergence"]
+    
+
+    # ✅ کاهش امتیاز اگه همگرایی ضعیف باشه
+    trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+    up_count = trends_list.count("up")
+    down_count = trends_list.count("down")
+    max_trend = max(up_count, down_count)
+        
+    if max_trend < 2:
+        total_score = total_score * 0.7  # 30% کاهش (کمتر از قبل)
+    elif max_trend < 3:
+        total_score = total_score * 0.85  # 15% کاهش (کمتر از قبل)
     
     # محدود به بازه -100 تا +100
     total_score = max(min(total_score, 100), -100)
     
     return round(total_score, 2)
+
+
+def calculate_signal_quality(rsi_values, rsi_trends, score):
+    """
+    محاسبه کیفیت سیگنال (0 تا 100)
+    """
+    # quality = 50
+    quality = 40  # ✅ شروع از 40 به جای 50
+    # ✅ همگرایی
+    trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+    up_count = trends_list.count("up")
+    down_count = trends_list.count("down")
+    max_trend = max(up_count, down_count)
+    
+    if max_trend >= 5:
+        quality += 35  # ✅ همه تایم‌فریم‌ها
+    elif max_trend >= 4:
+        quality += 30  # ✅ 4 تا همجهت
+    elif max_trend >= 3:
+        quality += 20  # ✅ 3 تا همجهت
+    elif max_trend >= 2:
+        quality += 10  # ✅ 2 تا همجهت
+    
+    # ✅ شدت overbought/oversold  (بررسی همه تایم‌فریم‌ها)
+    important_tf = ['1m', '5m', '15m']
+    all_timeframes = ['1m', '5m', '15m', '1h', '4h'] 
+
+    if score > 0:  # سیگنال خرید
+        oversold_count = sum(1 for tf in all_timeframes if rsi_values.get(tf, 50) < 30)
+        quality += oversold_count *  6  # هر تایم‌فریم oversold = +6
+        
+        # اگه RSI خیلی پایین باشه بهتره
+        extreme_oversold = sum(1 for tf in all_timeframes if rsi_values.get(tf, 50) < 20)
+        quality += extreme_oversold *  4  #  خیلی پایین = +4
+        
+    else:  # سیگنال فروش
+        overbought_count = sum(1 for tf in all_timeframes if rsi_values.get(tf, 50) > 70)
+        quality += overbought_count *  6
+        
+        # اگه RSI خیلی بالا باشه بهتره
+        extreme_overbought = sum(1 for tf in all_timeframes if rsi_values.get(tf, 50) > 80)
+        quality += extreme_overbought * 4
+    
+    # ✅ قدرت امتیاز
+    if abs(score) > 70:
+        quality +=  15  # امتیاز خیلی قوی
+    elif abs(score) > 50:
+        
+        quality += 10
+
+    elif abs(score) > 30:
+        quality += 5
+    
+    return min(quality, 100)
 
 
 def calculate_rsi_score(rsi):
@@ -180,28 +249,28 @@ def calculate_convergence_score(rsi_trends):
 
 
 
-def allowed_save(score):
+def allowed_save(score, rsi_trends, rsi_values):
     """
      بررسی محدوده های جذاب  = ذخیره
     
     Returns:
         True , False
     """
-    if score >= 70:
-        return True #خرید قوی
-    elif score >= 40:
-        return True #خرید
-    elif score >= 10:
-        return True #خرید ضعیف"
-    elif score >= -10:
-        return False #خنثی
-    elif score >= -40:
-        return True #فروش ضعیف"
-    elif score >= -70:
-        return True #فروش
-    else:
-        return True #فروش قوی"
+    quality = calculate_signal_quality(rsi_values, rsi_trends, score)
 
+    #   فقط سیگنال‌های با کیفیت بالای 50 ذخیره شن
+    if quality < 50: # 60 to 50
+        return False
+ 
+    #  شرایط راحت‌تر
+    if quality >= 75:
+        return abs(score) >= 10  # هر سیگنالی با کیفیت عالی
+    elif quality >= 60:
+        return abs(score) >= 15  # سیگنال‌های ضعیف با کیفیت خوب
+    elif quality >= 50:
+        return abs(score) >= 25  # سیگنال‌های متوسط
+    else:
+        return abs(score) >= 40  # فقط سیگنال‌های قوی
 
 
 def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score):
@@ -209,18 +278,44 @@ def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_tre
     ذخیره سیگنال های مهم
     """
     # save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
-    if allowed_save(advanced_score) :
+    if allowed_save(advanced_score, rsi_trends, rsi_values):
         signal_label = get_score_description(advanced_score)
+        quality = calculate_signal_quality(rsi_values, rsi_trends, advanced_score)
+
+
+        # شمارش همگرایی
+        trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+        up_count = trends_list.count("up")
+        down_count = trends_list.count("down")
+        convergence_count = max(up_count, down_count)
+        
+
         now = datetime.now(tz_tehran)
         c_cursor.execute(
-            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?)",
-            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label,now)
+            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label, quality, convergence_count,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?,?,?)",
+            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label, quality, convergence_count,now)
         )
 
-        if advanced_score >30 or advanced_score<-30:
+
+        # آلارم بر اساس کیفیت
+        if quality >= 85:
+            for _ in range(3):
+                winsound.Beep(2000, 200)
+            print(f"🔔🔔🔔 EXCELLENT! {SYMBOL} | Score: {advanced_score} | Quality: {quality}% | Conv: {convergence_count}/5")
+            
+        elif quality >= 75:
+            for _ in range(2):
+                winsound.Beep(1600, 250)
+            print(f"🔔🔔 GOOD! {SYMBOL} | Score: {advanced_score} | Quality: {quality}% | Conv: {convergence_count}/5")
+            
+        elif quality >= 60:
+            winsound.Beep(1200, 300)
+            print(f"🔔 Signal: {SYMBOL} | Score: {advanced_score} | Quality: {quality}% | Conv: {convergence_count}/5")
+
+        elif advanced_score >30 or advanced_score<-30:
             freq = 1600 
             winsound.Beep(freq, 400)
-        print(f"✅ signal saved: {SYMBOL} - {signal_label}")
+            print(f"✅ signal saved: {SYMBOL} - {signal_label}")
         return True
         # conn.commit()
     return False

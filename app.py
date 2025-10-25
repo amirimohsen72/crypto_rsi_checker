@@ -376,7 +376,8 @@ def show_signals(symbol_name=None):
     s.signal_label,
     s.rsi_values,
     s.time,
-    s.signal_type, sym.base_symbol 
+    s.signal_type, sym.base_symbol ,
+    s.quality,  s.convergence_count
             FROM signals s
             LEFT JOIN symbols sym ON s.symbol_id = sym.id
             WHERE 1=1     """

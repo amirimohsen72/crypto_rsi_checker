@@ -63,6 +63,8 @@
             <th>امتیاز پیشرفته</th>
             <th>سیگنال</th>
             <th>RSI‌ها</th>
+            <th>کیفیت سیگنال</th>
+            <th>تعداد همگرایی</th>
             <th>زمان</th>
         </tr>
         {% for row in data %}
@@ -86,6 +88,8 @@
 
                 <td>{{ row[8] }}  <!-- signal_label -->
             </td>
+                <td>{{ row[12] }}</td>
+                <td>{{ row[13] }}</td>
             <td>{{ row[9][0:16]  }} </td>  <!-- timestamp -->
 
         </tr>

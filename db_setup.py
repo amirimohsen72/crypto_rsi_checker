@@ -146,7 +146,12 @@ def create_tables():
     cursor.execute("""CREATE INDEX IF NOT EXISTS idx_signals_symbol_id ON signals(symbol_id);  """)
 
     cursor.execute("""CREATE INDEX IF NOT EXISTS idx_signals_score ON signals(advance_score);     """)
- 
+    cursor.execute("PRAGMA table_info(signals)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "quality" not in columns:
+        cursor.execute("ALTER TABLE signals ADD COLUMN quality INTEGER")
+    if "convergence_count" not in columns:
+        cursor.execute("ALTER TABLE signals ADD COLUMN convergence_count INTEGER")
 
     conn.commit()
 
