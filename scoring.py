@@ -104,6 +104,35 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=No
     
     return round(total_score, 2)
 
+def calculate_price_trend_simple(cursor, symbol_id, current_price):
+    """
+    ✅ روش ساده: مقایسه با میانگین 5 قیمت قبلی
+    """
+    query = """
+        SELECT price
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 5
+    """
+    cursor.execute(query, (symbol_id,))
+    results = cursor.fetchall()
+    
+    if len(results) < 3:
+        return "neutral"
+    
+    avg_previous_price = sum(r[0] for r in results) / len(results)
+    change_percent = ((current_price - avg_previous_price) / avg_previous_price) * 100
+    
+    if change_percent > 0.3:
+        return "up"
+    elif change_percent < -0.3:
+        return "down"
+    else:
+        return "neutral"
+
+
+
 def calculate_price_trend(cursor, symbol_id):
     """
     ✅ محاسبه روند قیمت با EMA
@@ -342,7 +371,8 @@ def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_tre
     ذخیره سیگنال های مهم
     """
     # save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
-    price_trend = calculate_price_trend(c_cursor, symbol_id)
+    # price_trend = calculate_price_trend(c_cursor, symbol_id)
+    price_trend = calculate_price_trend_simple(c_cursor, symbol_id, last_price)
     if allowed_save(advanced_score, rsi_trends, rsi_values, price_trend):
         signal_label = get_score_description(advanced_score)
         quality = calculate_signal_quality(rsi_values, rsi_trends, advanced_score, price_trend)
