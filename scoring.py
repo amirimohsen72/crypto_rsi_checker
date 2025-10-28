@@ -105,6 +105,42 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=No
     return round(total_score, 2)
 
 
+def calculate_price_trend_for_scalping(cursor, symbol_id, current_price):
+    """
+    ✅ روند قیمت برای scalping (کوتاه‌مدت)
+    
+    فقط 10-15 تا قیمت اخیر رو چک میکنه
+    """
+    query = """
+        SELECT price
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 15
+    """
+    cursor.execute(query, (symbol_id,))
+    results = cursor.fetchall()
+    
+    if len(results) < 5:
+        return "neutral"
+    
+    prices = [r[0] for r in results]
+    
+    # میانگین 5 تا اخیر vs میانگین 10-15 تا اخیر
+    recent_avg = sum(prices[:5]) / 5
+    older_avg = sum(prices[5:]) / len(prices[5:])
+    
+    change_percent = ((recent_avg - older_avg) / older_avg) * 100
+    
+    if change_percent > 0.3:
+        return "up"
+    elif change_percent < -0.3:
+        return "down"
+    else:
+        return "neutral"
+    
+
+
 def calculate_multi_timeframe_trend(cursor, symbol_id, current_price):
     """
     ✅ محاسبه روند در چند سطح زمانی
@@ -174,7 +210,7 @@ def get_dominant_trend(trends):
     else:
         return 'neutral'
     
-    
+
 
 def calculate_price_trend_smart(cursor, symbol_id, current_price, rsi_values):
     """
