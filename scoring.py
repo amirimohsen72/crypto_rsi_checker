@@ -12,7 +12,7 @@ tz_tehran = pytz.timezone("Asia/Tehran")
 
 
 
-def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes):
+def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=None):
     """
     محاسبه امتیاز پیشرفته با در نظر گرفتن RSI، روند و قدرت تغییر
     
@@ -90,12 +90,59 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes):
         total_score = total_score * 0.85  # 15% کاهش (کمتر از قبل)
     
     # محدود به بازه -100 تا +100
+    
+    if price_trend:
+        if total_score > 0 and price_trend == "down":
+            # سیگنال خرید ولی قیمت داره میریزه → کاهش امتیاز
+            total_score = total_score * 0.6
+        elif total_score < 0 and price_trend == "up":
+            # سیگنال فروش ولی قیمت داره میره بالا → کاهش امتیاز
+            total_score = total_score * 0.6
+
+    
     total_score = max(min(total_score, 100), -100)
     
     return round(total_score, 2)
 
+def calculate_price_trend(cursor, symbol_id):
+    """
+    ✅ محاسبه روند قیمت با EMA
+    """
+    # گرفتن 50 تا آخرین قیمت
+    query = """
+        SELECT price, timestamp
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """
+    cursor.execute(query, (symbol_id,))
+    results = cursor.fetchall()
+    
+    if len(results) < 20:
+        return "neutral"
+    
+    prices = [r[0] for r in reversed(results)]
+    
+    # محاسبه EMA کوتاه و بلند مدت
+    import pandas as pd
+    df = pd.DataFrame(prices, columns=['price'])
+    df['ema_9'] = df['price'].ewm(span=9, adjust=False).mean()
+    df['ema_21'] = df['price'].ewm(span=21, adjust=False).mean()
+    
+    last_price = df['price'].iloc[-1]
+    ema_9 = df['ema_9'].iloc[-1]
+    ema_21 = df['ema_21'].iloc[-1]
+    
+    # تشخیص روند
+    if ema_9 > ema_21 and last_price > ema_9:
+        return "up"
+    elif ema_9 < ema_21 and last_price < ema_9:
+        return "down"
+    else:
+        return "neutral"
 
-def calculate_signal_quality(rsi_values, rsi_trends, score):
+def calculate_signal_quality(rsi_values, rsi_trends, score, price_trend=None):
     """
     محاسبه کیفیت سیگنال (0 تا 100)
     """
@@ -146,7 +193,18 @@ def calculate_signal_quality(rsi_values, rsi_trends, score):
     elif abs(score) > 30:
         quality += 5
     
-    return min(quality, 100)
+        # ✅ فیلتر جدید: کاهش کیفیت اگه با روند قیمت مخالف باشه
+    if price_trend:
+        if score > 0 and price_trend == "down":
+            quality = quality * 0.5  # خرید در روند نزولی = کیفیت پایین
+        elif score < 0 and price_trend == "up":
+            quality = quality * 0.5  # فروش در روند صعودی = کیفیت پایین
+        elif score > 0 and price_trend == "up":
+            quality = quality * 1.2  # خرید در روند صعودی = بهتر
+        elif score < 0 and price_trend == "down":
+            quality = quality * 1.2  # فروش در روند نزولی = بهتر
+    
+    return min(int(quality), 100)
 
 
 def calculate_rsi_score(rsi):
@@ -249,15 +307,21 @@ def calculate_convergence_score(rsi_trends):
 
 
 
-def allowed_save(score, rsi_trends, rsi_values):
+def allowed_save(score, rsi_trends, rsi_values, price_trend=None):
     """
      بررسی محدوده های جذاب  = ذخیره
     
     Returns:
         True , False
     """
-    quality = calculate_signal_quality(rsi_values, rsi_trends, score)
+    quality = calculate_signal_quality(rsi_values, rsi_trends, score, price_trend)
 
+    if price_trend:
+        if (score > 0 and price_trend == "down") or (score < 0 and price_trend == "up"):
+            # سیگنال مخالف روند
+            if quality < 75:
+                return False  # فقط کیفیت 75+ قبوله
+    
     #   فقط سیگنال‌های با کیفیت بالای 50 ذخیره شن
     if quality < 50: # 60 to 50
         return False
@@ -278,9 +342,10 @@ def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_tre
     ذخیره سیگنال های مهم
     """
     # save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
-    if allowed_save(advanced_score, rsi_trends, rsi_values):
+    price_trend = calculate_price_trend(c_cursor, symbol_id)
+    if allowed_save(advanced_score, rsi_trends, rsi_values, price_trend):
         signal_label = get_score_description(advanced_score)
-        quality = calculate_signal_quality(rsi_values, rsi_trends, advanced_score)
+        quality = calculate_signal_quality(rsi_values, rsi_trends, advanced_score, price_trend)
 
 
         # شمارش همگرایی
@@ -292,8 +357,8 @@ def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_tre
 
         now = datetime.now(tz_tehran)
         c_cursor.execute(
-            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label, quality, convergence_count,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?,?,?)",
-            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label, quality, convergence_count,now)
+            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label, quality, convergence_count,price_trend,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?,?,?,?)",
+            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label, quality, convergence_count, price_trend,now)
         )
 
 

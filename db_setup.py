@@ -152,6 +152,8 @@ def create_tables():
         cursor.execute("ALTER TABLE signals ADD COLUMN quality INTEGER")
     if "convergence_count" not in columns:
         cursor.execute("ALTER TABLE signals ADD COLUMN convergence_count INTEGER")
+    if "price_trend" not in columns:
+        cursor.execute("ALTER TABLE signals ADD COLUMN price_trend TEXT")
 
     conn.commit()
 

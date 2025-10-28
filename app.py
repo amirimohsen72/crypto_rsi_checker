@@ -363,6 +363,8 @@ def show_signals(symbol_name=None):
     cursor = conn.cursor()
     strong_only = request.args.get('best')
     score = request.args.get('score')
+    quality = request.args.get('quality')
+    price_trend = request.args.get('price_trend')
     if score and score.isdigit():
         score = int(request.args.get('score'))
 
@@ -389,6 +391,14 @@ def show_signals(symbol_name=None):
     if score:
         base_query += " AND (s.advance_score >= ? OR s.advance_score <= ?)"
         params.extend([score, -score])
+
+    if quality:
+        base_query += " AND (s.quality >= ?)"
+        params.extend([quality])
+
+    if price_trend:
+        base_query += " AND (s.price_trend >= ?)"
+        params.extend([price_trend])
 
     if strong_only and strong_only.isdigit():
         if strong_only == '2':
