@@ -105,6 +105,76 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=No
     return round(total_score, 2)
 
 
+def calculate_multi_timeframe_trend(cursor, symbol_id, current_price):
+    """
+    ✅ محاسبه روند در چند سطح زمانی
+    
+    Returns:
+        dict: {
+            'short': 'up/down/neutral',  # 5-10 قیمت اخیر
+            'medium': 'up/down/neutral', # 20-30 قیمت اخیر
+            'long': 'up/down/neutral'    # 50 قیمت اخیر
+        }
+    """
+    query = """
+        SELECT price
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """
+    cursor.execute(query, (symbol_id,))
+    results = cursor.fetchall()
+    
+    if len(results) < 5:
+        return {'short': 'neutral', 'medium': 'neutral', 'long': 'neutral'}
+    
+    prices = [r[0] for r in results]
+    
+    trends = {}
+    
+    # روند کوتاه‌مدت (5-10 قیمت)
+    if len(prices) >= 5:
+        short_avg = sum(prices[:5]) / 5
+        short_change = ((current_price - short_avg) / short_avg) * 100
+        trends['short'] = 'up' if short_change > 0.2 else 'down' if short_change < -0.2 else 'neutral'
+    else:
+        trends['short'] = 'neutral'
+    
+    # روند میان‌مدت (20-30 قیمت)
+    if len(prices) >= 20:
+        medium_avg = sum(prices[:20]) / 20
+        medium_change = ((current_price - medium_avg) / medium_avg) * 100
+        trends['medium'] = 'up' if medium_change > 0.3 else 'down' if medium_change < -0.3 else 'neutral'
+    else:
+        trends['medium'] = 'neutral'
+    
+    # روند بلندمدت (50 قیمت)
+    if len(prices) >= 50:
+        long_avg = sum(prices[:50]) / 50
+        long_change = ((current_price - long_avg) / long_avg) * 100
+        trends['long'] = 'up' if long_change > 0.5 else 'down' if long_change < -0.5 else 'neutral'
+    else:
+        trends['long'] = 'neutral'
+    
+    return trends
+
+
+def get_dominant_trend(trends):
+    """
+    ✅ تعیین روند غالب از روندهای چند سطحی
+    """
+    # اولویت: short > medium > long
+    if trends['short'] != 'neutral':
+        return trends['short']
+    elif trends['medium'] != 'neutral':
+        return trends['medium']
+    elif trends['long'] != 'neutral':
+        return trends['long']
+    else:
+        return 'neutral'
+    
+    
 
 def calculate_price_trend_smart(cursor, symbol_id, current_price, rsi_values):
     """
@@ -160,7 +230,7 @@ def calculate_price_trend_smart(cursor, symbol_id, current_price, rsi_values):
         return "neutral"
     
 
-    
+
 
 def calculate_price_trend_simple(cursor, symbol_id, current_price):
     """
