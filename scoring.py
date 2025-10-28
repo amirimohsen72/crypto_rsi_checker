@@ -104,6 +104,64 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=No
     
     return round(total_score, 2)
 
+
+
+def calculate_price_trend_smart(cursor, symbol_id, current_price, rsi_values):
+    """
+    ✅ محاسبه روند قیمت متناسب با تایم‌فریم‌های فعال
+    
+    اگه فقط 1m و 5m داده داریم → روند کوتاه‌مدت چک میشه
+    اگه تا 1h و 4h داده داریم → روند بلندمدت‌تر چک میشه
+    """
+    # تشخیص بالاترین تایم‌فریم موجود
+    has_4h = '4h' in rsi_values and rsi_values['4h'] is not None
+    has_1h = '1h' in rsi_values and rsi_values['1h'] is not None
+    has_15m = '15m' in rsi_values and rsi_values['15m'] is not None
+    
+    # انتخاب تعداد قیمت بر اساس تایم‌فریم‌های موجود
+    if has_4h:
+        lookback = 50  # 50 تا قیمت (روند بلندمدت)
+        threshold = 0.5  # آستانه 0.5%
+    elif has_1h:
+        lookback = 30  # 30 تا قیمت (روند متوسط)
+        threshold = 0.4
+    elif has_15m:
+        lookback = 15  # 15 تا قیمت (روند کوتاه‌مدت)
+        threshold = 0.3
+    else:
+        lookback = 10  # 10 تا قیمت (روند خیلی کوتاه‌مدت)
+        threshold = 0.3
+    
+    # گرفتن قیمت‌ها
+    query = """
+        SELECT price
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+    """
+    cursor.execute(query, (symbol_id, lookback))
+    results = cursor.fetchall()
+    
+    if len(results) < max(3, lookback // 2):
+        return "neutral"
+    
+    prices = [r[0] for r in results]
+    
+    # روش 1: مقایسه با میانگین (ساده)
+    avg_price = sum(prices) / len(prices)
+    change_percent = ((current_price - avg_price) / avg_price) * 100
+    
+    if change_percent > threshold:
+        return "up"
+    elif change_percent < -threshold:
+        return "down"
+    else:
+        return "neutral"
+    
+
+    
+
 def calculate_price_trend_simple(cursor, symbol_id, current_price):
     """
     ✅ روش ساده: مقایسه با میانگین 5 قیمت قبلی
