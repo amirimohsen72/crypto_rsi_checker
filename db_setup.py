@@ -101,6 +101,8 @@ def create_tables():
         cursor.execute("ALTER TABLE rsi_data ADD COLUMN rsi_trend TEXT; -- 'up', 'down', 'neutral'")
     if "rsi_change" not in columns:
         cursor.execute("ALTER TABLE rsi_data ADD COLUMN rsi_change REAL; -- مقدار تغییر")
+    if "volume" not in columns:
+        cursor.execute("ALTER TABLE rsi_data ADD COLUMN volume REAL;")
 
     cursor.execute("SELECT COUNT(*) FROM symbols")
     count = cursor.fetchone()[0]

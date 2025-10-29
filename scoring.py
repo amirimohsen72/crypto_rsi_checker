@@ -11,6 +11,67 @@ import pytz
 tz_tehran = pytz.timezone("Asia/Tehran")
 
 
+def calculate_advanced_score_v2(cursor, symbol_id, current_price, rsi_values, rsi_trends, rsi_changes):
+    """
+    ✅ نسخه پیشرفته با چک‌های بیشتر
+    """
+    # 1️⃣ امتیاز اصلی (RSI)
+    base_score = calculate_advanced_score(rsi_values, rsi_trends, rsi_changes)
+    
+    # 2️⃣ روند قیمت
+    price_trend, price_change = calculate_price_trend_by_timeframe(cursor, symbol_id, current_price)
+    
+    # 3️⃣ حجم معاملات
+    volume_status, volume_ratio = calculate_volume_trend(cursor, symbol_id)
+    
+    # 4️⃣ شتاب RSI
+    rsi_momentum = calculate_rsi_momentum(rsi_values, rsi_changes)
+    
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # ترکیب امتیازها
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    final_score = base_score
+    quality_multiplier = 1.0
+    
+    # ✅ چک روند قیمت
+    if base_score > 0 and price_trend == "down":
+        final_score *= 0.5  # سیگنال خرید ولی قیمت داره میریزه
+        quality_multiplier *= 0.5
+    elif base_score < 0 and price_trend == "up":
+        final_score *= 0.5  # سیگنال فروش ولی قیمت داره میره بالا
+        quality_multiplier *= 0.5
+    elif base_score > 0 and price_trend == "up":
+        final_score *= 1.2  # سیگنال خرید و قیمت هم صعودیه (عالی!)
+        quality_multiplier *= 1.3
+    elif base_score < 0 and price_trend == "down":
+        final_score *= 1.2  # سیگنال فروش و قیمت هم نزولیه (عالی!)
+        quality_multiplier *= 1.3
+    
+    # ✅ چک حجم
+    if volume_status == "low":
+        quality_multiplier *= 0.7  # حجم کم = سیگنال ضعیف‌تر
+    elif volume_status == "high":
+        quality_multiplier *= 1.2  # حجم بالا = تایید سیگنال
+    
+    # ✅ چک شتاب RSI
+    if base_score > 0 and rsi_momentum > 0:
+        final_score *= 1.1  # RSI داره برمیگرده از oversold
+    elif base_score < 0 and rsi_momentum < 0:
+        final_score *= 1.1  # RSI داره برمیگرده از overbought
+    
+    final_score = max(min(final_score, 100), -100)
+    
+    return {
+        'score': round(final_score, 2),
+        'price_trend': price_trend,
+        'price_change': price_change,
+        'volume_status': volume_status,
+        'volume_ratio': volume_ratio,
+        'rsi_momentum': rsi_momentum,
+        'quality_multiplier': quality_multiplier
+    }
+
 
 def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=None):
     """
@@ -140,6 +201,47 @@ def calculate_price_trend_for_scalping(cursor, symbol_id, current_price):
         return "neutral"
     
 
+def calculate_price_trend_by_timeframe(cursor, symbol_id, current_price):
+    """
+    ✅ محاسبه روند قیمت با تایم‌فریم درست
+    
+    برای scalping: 5-15 دقیقه اخیر
+    """
+    # تشخیص چند دقیقه پیش میخوایم ببینیم
+    minutes_lookback = 15  # 15 دقیقه برای scalping
+    
+    # محاسبه تعداد دیتا (هر 30 ثانیه = 2 دیتا در دقیقه)
+    data_count = minutes_lookback * 2
+    
+    query = """
+        SELECT price, timestamp
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+    """
+    cursor.execute(query, (symbol_id, data_count))
+    results = cursor.fetchall()
+    
+    if len(results) < 5:
+        return "neutral", 0
+    
+    prices = [r[0] for r in results]
+    
+    # میانگین اول و آخر
+    recent_avg = sum(prices[:5]) / 5  # 5 تا اخیر (2.5 دقیقه)
+    older_avg = sum(prices[-5:]) / 5  # 5 تا قدیمی (15 دقیقه قبل)
+    
+    change_percent = ((recent_avg - older_avg) / older_avg) * 100
+    
+    # تشخیص روند
+    if change_percent > 0.3:
+        return "up", change_percent
+    elif change_percent < -0.3:
+        return "down", change_percent
+    else:
+        return "neutral", change_percent
+    
 
 def calculate_multi_timeframe_trend(cursor, symbol_id, current_price):
     """
@@ -334,6 +436,74 @@ def calculate_price_trend(cursor, symbol_id):
         return "down"
     else:
         return "neutral"
+
+
+def calculate_volume_trend(cursor, symbol_id):
+    """
+    ✅ بررسی روند حجم معاملات
+    
+    حجم بالا = تایید روند
+    حجم پایین = روند ضعیف
+    """
+    query = """
+        SELECT volume
+        FROM rsi_data
+        WHERE symbol_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 20
+    """
+    cursor.execute(query, (symbol_id,))
+    results = cursor.fetchall()
+    
+    if len(results) < 10:
+        return "neutral", 1.0
+    
+    volumes = [r[0] for r in results if r[0] is not None]
+    
+    if len(volumes) < 10:
+        return "neutral", 1.0
+    
+    recent_vol = sum(volumes[:5]) / 5
+    avg_vol = sum(volumes) / len(volumes)
+    
+    vol_ratio = recent_vol / avg_vol if avg_vol > 0 else 1.0
+    
+    if vol_ratio > 1.5:
+        return "high", vol_ratio  # حجم بالا
+    elif vol_ratio > 1.0:
+        return "normal", vol_ratio
+    else:
+        return "low", vol_ratio  # حجم پایین (احتیاط)
+    
+
+def calculate_rsi_momentum(rsi_values, rsi_changes):
+    """
+    ✅ محاسبه شتاب RSI (آیا داره تند میره بالا/پایین؟)
+    """
+    # بررسی تایم‌فریم‌های کوتاه (1m, 5m)
+    short_tf = ['1m', '5m']
+    
+    momentum = 0
+    count = 0
+    
+    for tf in short_tf:
+        if tf in rsi_values and tf in rsi_changes:
+            rsi = rsi_values[tf]
+            change = rsi_changes[tf]
+            
+            # شتاب = RSI × تغییر
+            if rsi < 30 and change > 2:
+                momentum += 1  # داره از oversold برمیگرده (خوب برای خرید)
+            elif rsi > 70 and change < -2:
+                momentum -= 1  # داره از overbought برمیگرده (خوب برای فروش)
+            
+            count += 1
+    
+    if count == 0:
+        return 0
+    
+    return momentum / count
+
 
 def calculate_signal_quality(rsi_values, rsi_trends, score, price_trend=None):
     """
@@ -530,13 +700,47 @@ def allowed_save(score, rsi_trends, rsi_values, price_trend=None):
         return abs(score) >= 40  # فقط سیگنال‌های قوی
 
 
+def save_signals_v2(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trends, rsi_changes, score):
+    """
+    ذخیره با چک‌های پیشرفته
+    """
+    # محاسبه امتیاز پیشرفته
+    result = calculate_advanced_score_v2(
+        cursor, symbol_id, last_price, 
+        rsi_values, rsi_trends, rsi_changes
+    )
+    
+    advanced_score = result['score']
+    quality_base = calculate_signal_quality(rsi_values, rsi_trends, advanced_score)
+    quality_final = int(quality_base * result['quality_multiplier'])
+    
+    # فیلتر ذخیره
+    if quality_final < 55:  # آستانه بالاتر
+        return False
+    
+    if abs(advanced_score) < 20:  # سیگنال خیلی ضعیف
+        return False
+    
+    # ذخیره
+    # ... کد ذخیره
+    
+    print(f"✅ Signal: {SYMBOL} | Score: {advanced_score} | Quality: {quality_final}")
+    print(f"   Price: {result['price_trend']} ({result['price_change']:+.2f}%)")
+    print(f"   Volume: {result['volume_status']} ({result['volume_ratio']:.2f}x)")
+    print(f"   RSI Momentum: {result['rsi_momentum']:+.2f}")
+    
+    return True
+
+
 def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score):
     """
     ذخیره سیگنال های مهم
     """
     # save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
     # price_trend = calculate_price_trend(c_cursor, symbol_id)
-    price_trend = calculate_price_trend_simple(c_cursor, symbol_id, last_price)
+    # price_trend = calculate_price_trend_simple(c_cursor, symbol_id, last_price) #پر خطا
+    price_trend = calculate_price_trend_smart(c_cursor, symbol_id, last_price, rsi_values) #یکم بهتر
+
     if allowed_save(advanced_score, rsi_trends, rsi_values, price_trend):
         signal_label = get_score_description(advanced_score)
         quality = calculate_signal_quality(rsi_values, rsi_trends, advanced_score, price_trend)

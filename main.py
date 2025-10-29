@@ -253,7 +253,8 @@ def run_fetcher_loop():
 
                         last_price = df["close"].iloc[-1]
                         last_rsi = round(df["RSI"].iloc[-1], 2)
-                        
+                        last_volume = df["volume"].iloc[-1]
+
                         last_rsi_ema = df["RSI_EMA"].iloc[-1]
 
                         # print(f"Price: {last_price:.4f}")
@@ -270,8 +271,8 @@ def run_fetcher_loop():
                         direction, rsi_change = detect_rsi_trend(last_rsi, prev_rsi, threshold=0.1)
 
                         cursor.execute(
-                            "INSERT INTO rsi_data (symbol_id, price, rsi, timeframe, timestamp,rsi_change ,rsi_trend ) VALUES (?, ?, ?, ?, ?,?,?)",
-                            (symbol_id, last_price, last_rsi, TIMEFRAME, now_tehran,rsi_change ,direction )
+                            "INSERT INTO rsi_data (symbol_id, price, rsi, timeframe, timestamp,rsi_change ,rsi_trend , volume ) VALUES (?, ?, ?, ?, ?, ?,?,?)",
+                            (symbol_id, last_price, last_rsi, TIMEFRAME, now_tehran,rsi_change ,direction,last_volume )
                         )
                         
 
@@ -360,7 +361,9 @@ def run_fetcher_loop():
                         "UPDATE market_info SET advance_score=? WHERE symbol_id=?",
                         (advanced_score, symbol_id)
                     )
-                    scoring.save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
+                    # scoring.save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
+                    scoring.save_signals_v2(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, rsi_changes , score)
+
                     conn.commit()
 
             except Exception as e:
