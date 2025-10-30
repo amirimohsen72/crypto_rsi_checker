@@ -8,8 +8,206 @@ import json
 import winsound
 import pytz
 import advanced_indicator as ai
+import pattern_recognition as pr
 
 tz_tehran = pytz.timezone("Asia/Tehran")
+
+
+
+def calculate_advanced_score_v4(cursor, symbol_id, current_price, rsi_values, rsi_trends, rsi_changes):
+    """
+    ✅ نسخه 4: ترکیب اندیکاتورها + الگوها
+    
+    وزن‌ها:
+    - RSI + Indicators (v3): 70%
+    - Pattern Recognition: 30%
+    """
+    # 1️⃣ امتیاز نسخه 3 (RSI + MACD + ADX + EMA)
+    v3_result = calculate_advanced_score_v3(
+        cursor, symbol_id, current_price,
+        rsi_values, rsi_trends, rsi_changes
+    )
+    
+    # 2️⃣ تحلیل الگوها
+    pattern_analysis = pr.analyze_patterns(cursor, symbol_id, current_price)
+    
+    if not pattern_analysis:
+        # اگه دیتا کمه، فقط v3 رو برمیگردونیم
+        return {
+            **v3_result,
+            'pattern_score': 0,
+            'pattern_analysis': None,
+            'version': 'v4_no_patterns'
+        }
+    
+    # 3️⃣ ترکیب امتیازها
+    v3_score = v3_result['score']
+    pattern_score = pattern_analysis['score']
+    
+    # وزن‌دهی
+    final_score = (v3_score * 0.70) + (pattern_score * 0.30)
+    
+    # 4️⃣ محاسبه اعتماد ترکیبی
+    v3_confidence = v3_result['confidence']
+    pattern_confidence = pattern_analysis['confidence']
+    
+    combined_confidence = (v3_confidence * 0.65) + (pattern_confidence * 0.35)
+    
+    # ✅ بونوس: اگه همه همجهت باشن
+    if (v3_score > 0 and pattern_score > 0) or (v3_score < 0 and pattern_score < 0):
+        combined_confidence += 10
+        final_score *= 1.1  # تقویت 10%
+    
+    # ✅ پنالتی: اگه مخالف باشن
+    if (v3_score > 0 and pattern_score < -20) or (v3_score < 0 and pattern_score > 20):
+        combined_confidence *= 0.7
+        final_score *= 0.8  # کاهش 20%
+    
+    final_score = max(min(final_score, 100), -100)
+    combined_confidence = max(min(combined_confidence, 100), 0)
+    
+    return {
+        **v3_result,
+        'score': round(final_score, 2),
+        'v3_score': round(v3_score, 2),
+        'pattern_score': round(pattern_score, 2),
+        'confidence': round(combined_confidence, 2),
+        'pattern_analysis': pattern_analysis,
+        'version': 'v4_with_patterns'
+    }
+
+
+def save_signals_v4(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trends, rsi_changes, score):
+    """
+    ✅ ذخیره سیگنال نسخه 4 - با Pattern Recognition
+    """
+    result = calculate_advanced_score_v4(
+        cursor, symbol_id, last_price,
+        rsi_values, rsi_trends, rsi_changes
+    )
+    
+    final_score = result['score']
+    confidence = result['confidence']
+    
+    print(f"\n{'═'*70}")
+    print(f"🔍 {SYMBOL} - Version 4 Analysis")
+    print(f"{'═'*70}")
+    
+    # نمایش امتیازها
+    print(f"\n📊 Score Breakdown:")
+    print(f"   V3 (Indicators): {result['v3_score']:+7.2f}")
+    print(f"   Patterns:        {result['pattern_score']:+7.2f}")
+    print(f"   {'─'*50}")
+    print(f"   FINAL:           {final_score:+7.2f} | Confidence: {confidence:.1f}%")
+    
+    # نمایش الگوها
+    if result['pattern_analysis']:
+        pa = result['pattern_analysis']
+        
+        print(f"\n🎨 Pattern Signals:")
+        if pa['signals']:
+            for sig in pa['signals']:
+                print(f"   • {sig}")
+        else:
+            print(f"   ℹ️ No patterns detected")
+        
+        # حمایت/مقاومت
+        sr = pa['support_resistance']
+        print(f"\n📊 Support/Resistance:")
+        print(f"   Position: {sr['position']}")
+        print(f"   Support:    ${sr['nearest_support']} ({sr['distance_to_support']:+.2f}%)")
+        print(f"   Resistance: ${sr['nearest_resistance']} ({sr['distance_to_resistance']:+.2f}%)")
+    
+    # ✅ فیلترهای ذخیره
+    if confidence < 60:
+        print(f"\n❌ REJECTED: Confidence too low ({confidence:.1f}%)")
+        return False
+    
+    if abs(final_score) < 30:
+        print(f"\n❌ REJECTED: Score too weak ({final_score})")
+        return False
+    
+    # ✅ فیلتر ویژه: اگه نزدیک مقاومت باشه و سیگنال خرید بده
+    if result['pattern_analysis']:
+        sr = result['pattern_analysis']['support_resistance']
+        
+        if final_score > 0 and sr['position'] == 'near_resistance':
+            print(f"\n⚠️ WARNING: Buy signal near resistance - Risk High!")
+            confidence *= 0.7
+            
+            if confidence < 55:
+                print(f"❌ REJECTED: Too risky")
+                return False
+        
+        if final_score < 0 and sr['position'] == 'near_support':
+            print(f"\n⚠️ WARNING: Sell signal near support - Risk High!")
+            confidence *= 0.7
+            
+            if confidence < 55:
+                print(f"❌ REJECTED: Too risky")
+                return False
+    
+    # ذخیره در دیتابیس
+    signal_label = get_score_description(final_score)
+    now = datetime.now(tz_tehran)
+    
+    # آماده‌سازی دیتای JSON
+    pattern_data = None
+    if result['pattern_analysis']:
+        pattern_data = {
+            'candlestick': result['pattern_analysis']['candlestick'],
+            'support': result['pattern_analysis']['support_resistance']['nearest_support'],
+            'resistance': result['pattern_analysis']['support_resistance']['nearest_resistance'],
+            'position': result['pattern_analysis']['support_resistance']['position'],
+            'signals': result['pattern_analysis']['signals']
+        }
+    
+    try:
+
+        trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+        up_count = trends_list.count("up")
+        down_count = trends_list.count("down")
+        convergence_count = max(up_count, down_count)
+        cursor.execute(
+            """INSERT INTO signals 
+            (symbol_id, price, symbol_name, rsi_values, signal_type, advance_score, score, 
+             signal_label, quality, convergence_count, price_trend, time, testmode) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (symbol_id, last_price, SYMBOL,
+             json.dumps(rsi_values),
+             json.dumps(pattern_data, default=str) if pattern_data else json.dumps(rsi_trends),
+             final_score, score, signal_label,
+             int(confidence), convergence_count,
+             result['pattern_analysis']['support_resistance']['position'] if result['pattern_analysis'] else 'neutral',
+             now, 'v4_patterns: PR')
+        )
+        
+        # آلارم با سطح‌های مختلف
+        if confidence >= 80:
+            for _ in range(4):
+                winsound.Beep(2200, 150)
+            print(f"\n🔔🔔🔔🔔 EXCEPTIONAL! {SYMBOL}")
+            print(f"Score: {final_score} | Confidence: {confidence:.1f}%")
+        elif confidence >= 70:
+            for _ in range(3):
+                winsound.Beep(2000, 200)
+            print(f"\n🔔🔔🔔 EXCELLENT! {SYMBOL}")
+            print(f"Score: {final_score} | Confidence: {confidence:.1f}%")
+        elif confidence >= 60:
+            for _ in range(2):
+                winsound.Beep(1600, 250)
+            print(f"\n🔔🔔 GOOD! {SYMBOL}")
+            print(f"Score: {final_score} | Confidence: {confidence:.1f}%")
+        else:
+            winsound.Beep(1200, 300)
+            print(f"\n🔔 Signal: {SYMBOL}")
+            print(f"Score: {final_score} | Confidence: {confidence:.1f}%")
+        
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ Error saving signal: {e}")
+        return False
 
 
 
@@ -755,6 +953,11 @@ def save_signals_v3(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trend
     signal_label = get_score_description(final_score)
     now = datetime.now(tz_tehran)
     
+
+    trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+    up_count = trends_list.count("up")
+    down_count = trends_list.count("down")
+    convergence_count = max(up_count, down_count)
     try:
         cursor.execute(
             """INSERT INTO signals 
@@ -765,7 +968,7 @@ def save_signals_v3(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trend
              json.dumps(rsi_values), 
              json.dumps(result['indicators'], default=str),  # ذخیره اندیکاتورها
              final_score, score, signal_label, 
-             int(confidence), 0, 
+             int(confidence), convergence_count, 
              result['indicators']['adx']['direction'] if result['indicators'] else 'neutral',
              now, 'v3_indicators')
         )

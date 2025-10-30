@@ -370,6 +370,9 @@ def run_fetcher_loop():
                         cursor, symbol_id, SYMBOL, last_price,
                         rsi_values, rsi_trends, rsi_changes, score
                     )
+                    scoring.save_signals_v4(cursor, symbol_id, SYMBOL, last_price,
+                              rsi_values, rsi_trends, rsi_changes, score)
+
                     conn.commit()
 
             except Exception as e:
