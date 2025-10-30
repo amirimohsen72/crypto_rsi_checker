@@ -5,7 +5,7 @@
     <title>signals Monitor</title>
     <style>
         body { font-family: Arial; background: #f2f2f2; padding: 20px; }
-        table { width: 80%; margin: auto; border-collapse: collapse; background: white; }
+        table { width: 90%; margin: auto; border-collapse: collapse; background: white; }
         th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
         th { background: #333; color: white; }
         .rsi-high { color: #ff4c4c; font-weight: bold; }  /* RSI بالا */
@@ -66,6 +66,7 @@
             <th>کیفیت سیگنال</th>
             <th>تعداد همگرایی</th>
             <th>زمان</th>
+            <th>ثابت کد</th>
         </tr>
         {% for row in data %}
         <tr class="
@@ -90,8 +91,9 @@
             </td>
                 <td>{{ row[12] }}</td>
                 <td>{{ row[13] }}</td>
-            <td>{{ row[9][0:16]  }} </td>  <!-- timestamp -->
-
+                <td>{{ row[9][0:16]  }} </td>  <!-- timestamp -->
+                
+                <td>{{ row[14] }}</td>
         </tr>
         {% endfor %}
     </table>

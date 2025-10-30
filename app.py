@@ -365,6 +365,7 @@ def show_signals(symbol_name=None):
     score = request.args.get('score')
     quality = request.args.get('quality')
     price_trend = request.args.get('price_trend')
+    mode = request.args.get('mode')
     if score and score.isdigit():
         score = int(request.args.get('score'))
 
@@ -379,7 +380,7 @@ def show_signals(symbol_name=None):
     s.rsi_values,
     s.time,
     s.signal_type, sym.base_symbol ,
-    s.quality,  s.convergence_count
+    s.quality,  s.convergence_count ,s.testmode
             FROM signals s
             LEFT JOIN symbols sym ON s.symbol_id = sym.id
             WHERE 1=1     """
@@ -399,6 +400,10 @@ def show_signals(symbol_name=None):
     if price_trend:
         base_query += " AND (s.price_trend >= ?)"
         params.extend([price_trend])
+
+    if mode:
+        base_query += " AND (s.testmode Like %?%)"
+        params.extend([mode])
 
     if strong_only and strong_only.isdigit():
         if strong_only == '2':

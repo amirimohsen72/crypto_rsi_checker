@@ -361,7 +361,7 @@ def run_fetcher_loop():
                         "UPDATE market_info SET advance_score=? WHERE symbol_id=?",
                         (advanced_score, symbol_id)
                     )
-                    # scoring.save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
+                    scoring.save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
                     scoring.save_signals_v2(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, rsi_changes , score)
 
                     conn.commit()

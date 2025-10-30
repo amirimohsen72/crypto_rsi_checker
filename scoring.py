@@ -34,31 +34,31 @@ def calculate_advanced_score_v2(cursor, symbol_id, current_price, rsi_values, rs
     final_score = base_score
     quality_multiplier = 1.0
     
-    # ✅ چک روند قیمت
+    # ✅ چک روند قیمت ملایم تر
     if base_score > 0 and price_trend == "down":
-        final_score *= 0.5  # سیگنال خرید ولی قیمت داره میریزه
-        quality_multiplier *= 0.5
+        final_score *= 0.7  # سیگنال خرید ولی قیمت داره میریزه
+        quality_multiplier *= 0.7
     elif base_score < 0 and price_trend == "up":
-        final_score *= 0.5  # سیگنال فروش ولی قیمت داره میره بالا
-        quality_multiplier *= 0.5
+        final_score *= 0.7  # سیگنال فروش ولی قیمت داره میره بالا
+        quality_multiplier *= 0.7
     elif base_score > 0 and price_trend == "up":
-        final_score *= 1.2  # سیگنال خرید و قیمت هم صعودیه (عالی!)
-        quality_multiplier *= 1.3
+        final_score *= 1.15  # سیگنال خرید و قیمت هم صعودیه (عالی!)
+        quality_multiplier *= 1.2
     elif base_score < 0 and price_trend == "down":
-        final_score *= 1.2  # سیگنال فروش و قیمت هم نزولیه (عالی!)
-        quality_multiplier *= 1.3
+        final_score *= 1.15  # سیگنال فروش و قیمت هم نزولیه (عالی!)
+        quality_multiplier *= 1.2
     
     # ✅ چک حجم
     if volume_status == "low":
-        quality_multiplier *= 0.7  # حجم کم = سیگنال ضعیف‌تر
+        quality_multiplier *= 0.85  # حجم کم = سیگنال ضعیف‌تر
     elif volume_status == "high":
-        quality_multiplier *= 1.2  # حجم بالا = تایید سیگنال
+        quality_multiplier *= 1.15  # حجم بالا = تایید سیگنال
     
     # ✅ چک شتاب RSI
     if base_score > 0 and rsi_momentum > 0:
-        final_score *= 1.1  # RSI داره برمیگرده از oversold
+        final_score *= 1.08  # RSI داره برمیگرده از oversold
     elif base_score < 0 and rsi_momentum < 0:
-        final_score *= 1.1  # RSI داره برمیگرده از overbought
+        final_score *= 1.08  # RSI داره برمیگرده از overbought
     
     final_score = max(min(final_score, 100), -100)
     
@@ -75,6 +75,7 @@ def calculate_advanced_score_v2(cursor, symbol_id, current_price, rsi_values, rs
 
 def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=None):
     """
+    محاسبه امتیاز پیشرفته اصلی
     محاسبه امتیاز پیشرفته با در نظر گرفتن RSI، روند و قدرت تغییر
     
     Args:
@@ -146,19 +147,19 @@ def calculate_advanced_score(rsi_values, rsi_trends, rsi_changes, price_trend=No
     max_trend = max(up_count, down_count)
         
     if max_trend < 2:
-        total_score = total_score * 0.7  # 30% کاهش (کمتر از قبل)
+        total_score = total_score * 0.85  
     elif max_trend < 3:
-        total_score = total_score * 0.85  # 15% کاهش (کمتر از قبل)
+        total_score = total_score * 0.92  
     
     # محدود به بازه -100 تا +100
     
     if price_trend:
         if total_score > 0 and price_trend == "down":
             # سیگنال خرید ولی قیمت داره میریزه → کاهش امتیاز
-            total_score = total_score * 0.6
+            total_score = total_score * 0.75
         elif total_score < 0 and price_trend == "up":
             # سیگنال فروش ولی قیمت داره میره بالا → کاهش امتیاز
-            total_score = total_score * 0.6
+            total_score = total_score * 0.75
 
     
     total_score = max(min(total_score, 100), -100)
@@ -200,11 +201,10 @@ def calculate_price_trend_for_scalping(cursor, symbol_id, current_price):
     else:
         return "neutral"
     
-
 def calculate_price_trend_by_timeframe(cursor, symbol_id, current_price):
     """
     ✅ محاسبه روند قیمت با تایم‌فریم درست
-    
+    fallback و error handling
     برای scalping: 5-15 دقیقه اخیر
     """
     # تشخیص چند دقیقه پیش میخوایم ببینیم
@@ -223,25 +223,42 @@ def calculate_price_trend_by_timeframe(cursor, symbol_id, current_price):
     cursor.execute(query, (symbol_id, data_count))
     results = cursor.fetchall()
     
+    # ✅ اگه دیتا کمه، neutral برمیگردونیم
     if len(results) < 5:
+        print(f"  ⚠️ Not enough data for trend: {len(results)}/5 - returning neutral")
         return "neutral", 0
     
     prices = [r[0] for r in results]
     
     # میانگین اول و آخر
     recent_avg = sum(prices[:5]) / 5  # 5 تا اخیر (2.5 دقیقه)
-    older_avg = sum(prices[-5:]) / 5  # 5 تا قدیمی (15 دقیقه قبل)
+    older_avg = sum(prices[-5:]) / 5  # 5 تا قدیمی (15 دقیقه قبل)    
+
+    recent_count = min(5, len(prices))
+    older_count = min(5, len(prices) - recent_count)
+    
+    if older_count < 2:
+        return "neutral", 0
+    
+    recent_count = min(5, len(prices))
+    older_count = min(5, len(prices) - recent_count)
+    
+    if older_count < 2:
+        return "neutral", 0
+    recent_avg = sum(prices[:recent_count]) / recent_count
+    older_avg = sum(prices[-older_count:]) / older_count
     
     change_percent = ((recent_avg - older_avg) / older_avg) * 100
     
     # تشخیص روند
-    if change_percent > 0.3:
+    if change_percent > 0.2: 
         return "up", change_percent
-    elif change_percent < -0.3:
+    elif change_percent < -0.2:  
         return "down", change_percent
     else:
-        return "neutral", change_percent
-    
+        return "neutral", change_percent   
+    return "neutral", 0
+
 
 def calculate_multi_timeframe_trend(cursor, symbol_id, current_price):
     """
@@ -441,7 +458,7 @@ def calculate_price_trend(cursor, symbol_id):
 def calculate_volume_trend(cursor, symbol_id):
     """
     ✅ بررسی روند حجم معاملات
-    
+     بررسی روند حجم با fallback
     حجم بالا = تایید روند
     حجم پایین = روند ضعیف
     """
@@ -491,6 +508,8 @@ def calculate_rsi_momentum(rsi_values, rsi_changes):
             rsi = rsi_values[tf]
             change = rsi_changes[tf]
             
+            if rsi is None:
+                continue
             # شتاب = RSI × تغییر
             if rsi < 30 and change > 2:
                 momentum += 1  # داره از oversold برمیگرده (خوب برای خرید)
@@ -711,14 +730,16 @@ def save_signals_v2(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trend
     )
     
     advanced_score = result['score']
-    quality_base = calculate_signal_quality(rsi_values, rsi_trends, advanced_score)
+    quality_base = calculate_signal_quality(rsi_values, rsi_trends, advanced_score, result['price_trend'])
     quality_final = int(quality_base * result['quality_multiplier'])
     
     # فیلتر ذخیره
-    if quality_final < 55:  # آستانه بالاتر
+    if quality_final < 45:  # آستانه بالاتر
+        print(f"  ❌ Quality too low: {quality_final}")
         return False
     
-    if abs(advanced_score) < 20:  # سیگنال خیلی ضعیف
+    if abs(advanced_score) < 15:  # سیگنال خیلی ضعیف
+        print(f"  ❌ Score too weak: {advanced_score}")
         return False
     
     # ذخیره
@@ -729,8 +750,48 @@ def save_signals_v2(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trend
     print(f"   Volume: {result['volume_status']} ({result['volume_ratio']:.2f}x)")
     print(f"   RSI Momentum: {result['rsi_momentum']:+.2f}")
     
-    return True
-
+    # ذخیره سیگنال
+    signal_label = get_score_description(advanced_score)
+    trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+    up_count = trends_list.count("up")
+    down_count = trends_list.count("down")
+    convergence_count = max(up_count, down_count)
+    now = datetime.now(tz_tehran)
+    try:
+        cursor.execute(
+            """INSERT INTO signals 
+            (symbol_id, price, symbol_name, rsi_values, signal_type, advance_score, score, 
+             signal_label, quality, convergence_count, price_trend, time,testmode) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends),
+             advanced_score, score, signal_label, quality_final, convergence_count, 
+             result['price_trend'], now,'savesignal2')
+        )
+        
+        # آلارم
+        if quality_final >= 75:
+            for _ in range(3):
+                winsound.Beep(2000, 200)
+            print(f"🔔🔔🔔 EXCELLENT! {SYMBOL} | Score: {advanced_score} | Quality: {quality_final}%")
+            
+        elif quality_final >= 60:
+            for _ in range(2):
+                winsound.Beep(1600, 250)
+            print(f"🔔🔔 GOOD! {SYMBOL} | Score: {advanced_score} | Quality: {quality_final}%")
+            
+        else:
+            winsound.Beep(1200, 300)
+            print(f"🔔 Signal: {SYMBOL} | Score: {advanced_score} | Quality: {quality_final}%")
+        
+        print(f"   💰 Price: {result['price_trend']} ({result['price_change']:+.2f}%)")
+        print(f"   📊 Volume: {result['volume_status']} ({result['volume_ratio']:.2f}x)")
+        print(f"   🚀 RSI Momentum: {result['rsi_momentum']:+.2f}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"  ❌ Error saving signal: {e}")
+        return False
 
 def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score):
     """
@@ -755,8 +816,8 @@ def save_signals(c_cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_tre
 
         now = datetime.now(tz_tehran)
         c_cursor.execute(
-            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label, quality, convergence_count,price_trend,time ) VALUES (?,?, ?, ?, ?, ?,?,?,?,?,?,?)",
-            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label, quality, convergence_count, price_trend,now)
+            "INSERT INTO signals (symbol_id, price, symbol_name, rsi_values, signal_type ,advance_score ,score , signal_label, quality, convergence_count,price_trend,time,testmode ) VALUES (?, ?,?, ?, ?, ?, ?,?,?,?,?,?,?)",
+            (symbol_id, last_price, SYMBOL, json.dumps(rsi_values), json.dumps(rsi_trends) ,advanced_score ,score ,signal_label, quality, convergence_count, price_trend,now, 'savesignal')
         )
 
 
