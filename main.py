@@ -8,6 +8,7 @@ import sqlite3
 import pytz
 from datetime import datetime, timedelta
 import scoring  # ✨ import کردن ماژول
+# import scoring2 as scoring
 
 
 
@@ -364,6 +365,11 @@ def run_fetcher_loop():
                     scoring.save_signals(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, advanced_score , score)
                     scoring.save_signals_v2(cursor , symbol_id , SYMBOL , last_price, rsi_values, rsi_trends, rsi_changes , score)
 
+                    # ✅ نسخه 3 (جدید)
+                    scoring.save_signals_v3(
+                        cursor, symbol_id, SYMBOL, last_price,
+                        rsi_values, rsi_trends, rsi_changes, score
+                    )
                     conn.commit()
 
             except Exception as e:

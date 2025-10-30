@@ -7,8 +7,215 @@ from datetime import datetime
 import json
 import winsound
 import pytz
+import advanced_indicator as ai
 
 tz_tehran = pytz.timezone("Asia/Tehran")
+
+
+
+def calculate_advanced_score_v3(cursor, symbol_id, current_price, rsi_values, rsi_trends, rsi_changes):
+    """
+    ✅ نسخه 3 با اندیکاتورهای پیشرفته
+    
+    ترکیب:
+    - RSI (وزن: 30%)
+    - MACD (وزن: 25%)
+    - ADX (وزن: 20%)
+    - EMA Momentum (وزن: 15%)
+    - Volume (وزن: 10%)
+    """
+    # 1️⃣ امتیاز پایه RSI
+    base_rsi_score = calculate_rsi_base_score(rsi_values, rsi_trends, rsi_changes)
+    
+    # 2️⃣ دریافت DataFrame برای محاسبات
+    df = ai.get_dataframe_from_cursor(cursor, symbol_id, limit=200)
+    
+    if df is None or len(df) < 50:
+        # اگه دیتا کمه، فقط RSI رو برمیگردونیم
+        return {
+            'score': base_rsi_score,
+            'rsi_score': base_rsi_score,
+            'macd_score': 0,
+            'adx_score': 0,
+            'ema_score': 0,
+            'volume_score': 0,
+            'confidence': 30,
+            'indicators': None
+        }
+    
+    # 3️⃣ محاسبه اندیکاتورها
+    indicators = ai.calculate_combined_momentum(df)
+    
+    # 4️⃣ محاسبه امتیازها
+    weights = {
+        'rsi': 0.30,
+        'macd': 0.25,
+        'adx': 0.20,
+        'ema': 0.15,
+        'volume': 0.10
+    }
+    
+    # امتیاز MACD
+    macd_score = calculate_macd_score(indicators['macd'])
+    
+    # امتیاز ADX
+    adx_score = calculate_adx_score(indicators['adx'], base_rsi_score)
+    
+    # امتیاز EMA
+    ema_score = calculate_ema_score(indicators['ema'])
+    
+    # امتیاز Volume
+    volume_status, volume_ratio = calculate_volume_trend(cursor, symbol_id)
+    volume_score = calculate_volume_score(volume_status, volume_ratio)
+    
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # ترکیب نهایی
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    final_score = (
+        base_rsi_score * weights['rsi'] +
+        macd_score * weights['macd'] +
+        adx_score * weights['adx'] +
+        ema_score * weights['ema'] +
+        volume_score * weights['volume']
+    )
+    
+    # محاسبه اعتماد
+    confidence = calculate_confidence(
+        indicators,
+        base_rsi_score,
+        macd_score,
+        adx_score,
+        ema_score
+    )
+    
+    final_score = max(min(final_score, 100), -100)
+    
+    return {
+        'score': round(final_score, 2),
+        'rsi_score': round(base_rsi_score, 2),
+        'macd_score': round(macd_score, 2),
+        'adx_score': round(adx_score, 2),
+        'ema_score': round(ema_score, 2),
+        'volume_score': round(volume_score, 2),
+        'confidence': round(confidence, 2),
+        'indicators': indicators
+    }
+
+
+
+def calculate_rsi_base_score(rsi_values, rsi_trends, rsi_changes):
+    """محاسبه امتیاز پایه RSI (مثل قبل)"""
+    from scoring import calculate_advanced_score  # import از فایل قبلی
+    return calculate_advanced_score(rsi_values, rsi_trends, rsi_changes)
+
+
+def calculate_macd_score(macd_data):
+    """
+    محاسبه امتیاز MACD
+    
+    - Golden Cross = +80 تا +100
+    - Death Cross = -80 تا -100
+    - Bullish = +30 تا +70
+    - Bearish = -30 تا -70
+    """
+    score = 0
+    
+    if macd_data['crossover'] == 'golden':
+        score += 80 + (macd_data['strength'] * 0.2)
+    elif macd_data['crossover'] == 'death':
+        score -= 80 + (macd_data['strength'] * 0.2)
+    elif macd_data['trend'] == 'bullish':
+        score += 30 + (macd_data['strength'] * 0.4)
+    elif macd_data['trend'] == 'bearish':
+        score -= 30 + (macd_data['strength'] * 0.4)
+    
+    return max(min(score, 100), -100)
+
+
+def calculate_adx_score(adx_data, base_signal_score):
+    """
+    محاسبه امتیاز ADX
+    
+    ADX نشون میده روند چقدر قویه
+    اگه روند قوی باشه، امتیاز سیگنال رو تقویت میکنه
+    """
+    # ADX خودش سیگنال نمیده، فقط قدرت رو نشون میده
+    # پس امتیاز بر اساس جهت base_signal میگیریم
+    
+    strength_multiplier = {
+        'weak': 0.3,
+        'moderate': 0.6,
+        'strong': 1.0,
+        'very_strong': 1.3
+    }.get(adx_data['trend_strength'], 0.5)
+    
+    if adx_data['direction'] == 'up':
+        return 60 * strength_multiplier
+    elif adx_data['direction'] == 'down':
+        return -60 * strength_multiplier
+    else:
+        return 0  # روند sideways
+
+
+
+def calculate_ema_score(ema_data):
+    """محاسبه امتیاز EMA Momentum"""
+    momentum_scores = {
+        'strong_up': 80,
+        'weak_up': 40,
+        'neutral': 0,
+        'weak_down': -40,
+        'strong_down': -80
+    }
+    return momentum_scores.get(ema_data['momentum'], 0)
+
+
+def calculate_volume_score(volume_status, volume_ratio):
+    """محاسبه امتیاز حجم"""
+    if volume_status == "high":
+        return 50  # حجم بالا = تایید سیگنال
+    elif volume_status == "normal":
+        return 0
+    else:
+        return -30  # حجم پایین = سیگنال ضعیف
+
+
+def calculate_confidence(indicators, rsi_score, macd_score, adx_score, ema_score):
+    """
+    محاسبه درصد اعتماد به سیگنال
+    
+    بر اساس:
+    - همجهت بودن اندیکاتورها
+    - قدرت ADX
+    - شدت MACD
+    """
+    confidence = 50
+    
+    # ✅ همه اندیکاتورها همجهت باشن
+    scores = [rsi_score, macd_score, adx_score, ema_score]
+    positive_count = sum(1 for s in scores if s > 0)
+    negative_count = sum(1 for s in scores if s < 0)
+    
+    if positive_count == 4:
+        confidence += 30
+    elif positive_count >= 3:
+        confidence += 20
+    elif negative_count == 4:
+        confidence += 30
+    elif negative_count >= 3:
+        confidence += 20
+    else:
+        confidence -= 10  # اندیکاتورها مخالف هم
+    
+    # ✅ ADX قوی
+    if indicators['adx']['trend_strength'] in ['strong', 'very_strong']:
+        confidence += 15
+    
+    # ✅ MACD Crossover
+    if indicators['macd']['crossover'] != 'none':
+        confidence += 10
+    
+    return max(min(confidence, 100), 0)
 
 
 def calculate_advanced_score_v2(cursor, symbol_id, current_price, rsi_values, rsi_trends, rsi_changes):
@@ -492,6 +699,97 @@ def calculate_volume_trend(cursor, symbol_id):
     else:
         return "low", vol_ratio  # حجم پایین (احتیاط)
     
+
+
+def save_signals_v3(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trends, rsi_changes, score):
+    """
+    ✅ ذخیره سیگنال نسخه 3 با اندیکاتورهای پیشرفته
+    """
+    result = calculate_advanced_score_v3(
+        cursor, symbol_id, last_price,
+        rsi_values, rsi_trends, rsi_changes
+    )
+    
+    final_score = result['score']
+    confidence = result['confidence']
+    
+    print(f"\n{'─'*60}")
+    print(f"🔍 {SYMBOL}")
+    print(f"{'─'*60}")
+    print(f"📊 Scores Breakdown:")
+    print(f"   RSI:    {result['rsi_score']:+7.2f}")
+    print(f"   MACD:   {result['macd_score']:+7.2f}")
+    print(f"   ADX:    {result['adx_score']:+7.2f}")
+    print(f"   EMA:    {result['ema_score']:+7.2f}")
+    print(f"   Volume: {result['volume_score']:+7.2f}")
+    print(f"   {'─'*40}")
+    print(f"   FINAL:  {final_score:+7.2f} | Confidence: {confidence}%")
+    
+    if result['indicators']:
+        ind = result['indicators']
+        print(f"\n📈 Indicators:")
+        print(f"   MACD: {ind['macd']['trend']} ({ind['macd']['crossover']})")
+        print(f"   ADX:  {ind['adx']['adx']} - {ind['adx']['trend_strength']} ({ind['adx']['direction']})")
+        print(f"   EMA:  {ind['ema']['momentum']} (slope: {ind['ema']['ema_slope']:.2f}%)")
+    
+    # ✅ فیلترهای ذخیره
+    if confidence < 55:
+        print(f"❌ Confidence too low: {confidence}%")
+        return False
+    
+    if abs(final_score) < 25:
+        print(f"❌ Score too weak: {final_score}")
+        return False
+    
+    # ✅ چک همجهتی با روند ADX
+    if result['indicators']:
+        adx_dir = result['indicators']['adx']['direction']
+        if final_score > 0 and adx_dir == 'down':
+            print(f"⚠️ Buy signal but ADX shows downtrend - Quality reduced")
+            confidence *= 0.7
+        elif final_score < 0 and adx_dir == 'up':
+            print(f"⚠️ Sell signal but ADX shows uptrend - Quality reduced")
+            confidence *= 0.7
+    
+    # ذخیره در دیتابیس
+    signal_label = get_score_description(final_score)
+    now = datetime.now(tz_tehran)
+    
+    try:
+        cursor.execute(
+            """INSERT INTO signals 
+            (symbol_id, price, symbol_name, rsi_values, signal_type, advance_score, score, 
+             signal_label, quality, convergence_count, price_trend, time, testmode) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (symbol_id, last_price, SYMBOL, 
+             json.dumps(rsi_values), 
+             json.dumps(result['indicators'], default=str),  # ذخیره اندیکاتورها
+             final_score, score, signal_label, 
+             int(confidence), 0, 
+             result['indicators']['adx']['direction'] if result['indicators'] else 'neutral',
+             now, 'v3_indicators')
+        )
+        
+        # آلارم
+        if confidence >= 75:
+            for _ in range(3):
+                winsound.Beep(2000, 200)
+            print(f"🔔🔔🔔 EXCELLENT! {SYMBOL}")
+        elif confidence >= 60:
+            for _ in range(2):
+                winsound.Beep(1600, 250)
+            print(f"🔔🔔 GOOD! {SYMBOL}")
+        else:
+            winsound.Beep(1200, 300)
+            print(f"🔔 Signal: {SYMBOL}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error saving: {e}")
+        return False
+
+
 
 def calculate_rsi_momentum(rsi_values, rsi_changes):
     """
