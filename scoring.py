@@ -9,9 +9,271 @@ import winsound
 import pytz
 import advanced_indicator as ai
 import pattern_recognition as pr
+import statistical_analysis as sa
 
 tz_tehran = pytz.timezone("Asia/Tehran")
 
+
+def calculate_advanced_score_v5(cursor, symbol_id, current_price, rsi_values, rsi_trends, rsi_changes):
+    """
+    ✅ نسخه 5: ترکیب کامل - Indicators + Patterns + Statistics
+    
+    وزن‌ها:
+    - V4 (Indicators + Patterns): 60%
+    - Statistical Analysis: 25%
+    - Risk Adjustment: 15%
+    """
+    # 1️⃣ امتیاز نسخه 4
+    v4_result = calculate_advanced_score_v4(
+        cursor, symbol_id, current_price,
+        rsi_values, rsi_trends, rsi_changes
+    )
+    
+    # 2️⃣ تحلیل آماری
+    stat_analysis = sa.analyze_statistical(cursor, symbol_id, current_price)
+    
+    if not stat_analysis:
+        # اگه دیتا کمه، فقط v4 رو برمیگردونیم
+        return {
+            **v4_result,
+            'statistical_score': 0,
+            'risk_level': 50,
+            'stat_analysis': None,
+            'version': 'v5_no_stats'
+        }
+    
+    # 3️⃣ ترکیب امتیازها
+    v4_score = v4_result['score']
+    stat_score = stat_analysis['score']
+    
+    # وزن‌دهی
+    base_score = (v4_score * 0.60) + (stat_score * 0.25)
+    
+    # 4️⃣ تنظیم بر اساس ریسک
+    risk_level = stat_analysis['risk_level']
+    risk_multiplier = calculate_risk_multiplier(risk_level)
+    
+    final_score = base_score * risk_multiplier
+    
+    # 5️⃣ محاسبه اعتماد ترکیبی
+    v4_confidence = v4_result['confidence']
+    stat_confidence = stat_analysis['confidence']
+    
+    combined_confidence = (v4_confidence * 0.60) + (stat_confidence * 0.40)
+    
+    # ✅ بونوس/پنالتی بر اساس Bollinger Bands
+    bb_signal = stat_analysis['bollinger']['signal']
+    
+    if (v4_score > 0 and bb_signal == 'oversold') or (v4_score < 0 and bb_signal == 'overbought'):
+        # همجهت با BB
+        combined_confidence += 10
+        final_score *= 1.15
+    elif (v4_score > 0 and bb_signal == 'overbought') or (v4_score < 0 and bb_signal == 'oversold'):
+        # مخالف با BB
+        combined_confidence *= 0.75
+        final_score *= 0.80
+    
+    # ✅ پنالتی نوسانات بالا
+    if stat_analysis['atr']['volatility'] == 'very_high':
+        combined_confidence *= 0.7
+        final_score *= 0.85
+    
+    # محدود کردن
+    final_score = max(min(final_score, 100), -100)
+    combined_confidence = max(min(combined_confidence, 100), 0)
+    
+    return {
+        **v4_result,
+        'score': round(final_score, 2),
+        'v4_score': round(v4_score, 2),
+        'statistical_score': round(stat_score, 2),
+        'risk_level': round(risk_level, 2),
+        'confidence': round(combined_confidence, 2),
+        'stat_analysis': stat_analysis,
+        'version': 'v5_complete'
+    }
+
+
+def calculate_risk_multiplier(risk_level):
+    """
+    محاسبه ضریب کاهش بر اساس ریسک
+    
+    ریسک بالا = کاهش امتیاز (محافظه‌کارانه‌تر)
+    """
+    if risk_level > 85:
+        return 0.70  # ریسک خیلی بالا
+    elif risk_level > 70:
+        return 0.80
+    elif risk_level > 55:
+        return 0.90
+    elif risk_level < 30:
+        return 1.10  # ریسک پایین = فرصت بهتر
+    else:
+        return 1.0
+
+
+def save_signals_v5(cursor, symbol_id, SYMBOL, last_price, rsi_values, rsi_trends, rsi_changes, score):
+    """
+    ✅ ذخیره سیگنال نسخه 5 - تحلیل کامل
+    """
+    result = calculate_advanced_score_v5(
+        cursor, symbol_id, last_price,
+        rsi_values, rsi_trends, rsi_changes
+    )
+    
+    final_score = result['score']
+    confidence = result['confidence']
+    risk_level = result['risk_level']
+    
+    print(f"\n{'═'*75}")
+    print(f"🔍 {SYMBOL} - Version 5 Complete Analysis")
+    print(f"{'═'*75}")
+    
+    # نمایش امتیازها
+    print(f"\n📊 Score Breakdown:")
+    print(f"   V4 (Ind+Pat):    {result['v4_score']:+7.2f}")
+    print(f"   Statistical:     {result['statistical_score']:+7.2f}")
+    print(f"   {'─'*55}")
+    print(f"   FINAL:           {final_score:+7.2f}")
+    print(f"   Confidence:      {confidence:.1f}%")
+    print(f"   Risk Level:      {risk_level:.1f}/100")
+    
+    # نمایش آمار
+    if result['stat_analysis']:
+        stat = result['stat_analysis']
+        
+        print(f"\n📊 Statistical Indicators:")
+        print(f"   ATR:        {stat['atr']['atr_percent']:.2f}% ({stat['atr']['volatility']})")
+        print(f"   Bollinger:  {stat['bollinger']['signal']} (pos: {stat['bollinger']['current_position']:.1f}%)")
+        print(f"   Momentum:   {stat['momentum']['momentum']} (ROC: {stat['momentum']['roc']:+.2f}%)")
+        print(f"   Volatility: {stat['volatility']['volatility_index']:.1f}/100 ({stat['volatility']['trend']})")
+        print(f"\n   💡 {stat['recommendation']}")
+    
+    # ✅ فیلترهای ذخیره
+    # min_confidence = 65 if risk_level > 70 else 60
+    min_confidence = 70 if risk_level > 80 else 65 if risk_level > 70 else 60
+    if confidence < min_confidence:
+        print(f"\n❌ REJECTED: Confidence too low ({confidence:.1f}% < {min_confidence}%)")
+        return False
+
+    
+    # ✅ Score threshold پویا بر اساس Bollinger
+    if result['stat_analysis']:
+        bb_signal = result['stat_analysis']['bollinger']['signal']
+        # اگه oversold/overbought باشه، threshold پایین‌تر
+        if bb_signal in ['oversold', 'overbought']:
+            min_score = 20
+        else:
+            min_score = 30
+    else:
+        min_score = 30
+    if abs(final_score) < min_score:
+        print(f"\n❌ REJECTED: Score too weak ({final_score} < {min_score})")
+    
+    # if abs(final_score) < 35:
+    # if abs(final_score) < 30:
+    #     print(f"\n❌ REJECTED: Score too weak ({final_score})")
+    #     return False
+    
+    # ✅ فیلتر ریسک
+    if risk_level > 85 and confidence < 75:
+        print(f"\n❌ REJECTED: Very high risk ({risk_level:.1f}) + low confidence")
+        return False
+    
+    # ✅ فیلتر Bollinger Bands
+    if result['stat_analysis']:
+        bb = result['stat_analysis']['bollinger']
+        
+        # خرید در overbought یا فروش در oversold = خطرناک
+        if final_score > 0 and bb['signal'] == 'overbought':
+            print(f"\n⚠️ WARNING: Buy signal at Bollinger upper band!")
+            confidence *= 0.65
+            
+            if confidence < 55:
+                print(f"❌ REJECTED: Too risky (overbought)")
+                return False
+        
+        if final_score < 0 and bb['signal'] == 'oversold':
+            print(f"\n⚠️ WARNING: Sell signal at Bollinger lower band!")
+            confidence *= 0.65
+            
+            if confidence < 55:
+                print(f"❌ REJECTED: Too risky (oversold)")
+                return False
+    
+    # ذخیره در دیتابیس
+    signal_label = get_score_description(final_score, risk_level)
+    now = datetime.now(tz_tehran)
+    
+    # آماده‌سازی دیتای JSON
+    full_data = {
+        'rsi': rsi_values,
+        'v4_score': result['v4_score'],
+        'stat_score': result['statistical_score'],
+        'risk_level': risk_level
+    }
+    
+    if result['stat_analysis']:
+        full_data['statistics'] = {
+            'atr': result['stat_analysis']['atr'],
+            'bollinger': result['stat_analysis']['bollinger'],
+            'momentum': result['stat_analysis']['momentum'],
+            'volatility': result['stat_analysis']['volatility']
+        }
+    
+    try:
+        trends_list = [t for t in rsi_trends.values() if t in ["up", "down"]]
+        up_count = trends_list.count("up")
+        down_count = trends_list.count("down")
+        convergence_count = max(up_count, down_count)
+        cursor.execute(
+            """INSERT INTO signals 
+            (symbol_id, price, symbol_name, rsi_values, signal_type, advance_score, score, 
+             signal_label, quality, convergence_count, price_trend, time, testmode) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (symbol_id, last_price, SYMBOL,
+             json.dumps(rsi_values),
+             json.dumps(full_data, default=str),
+             final_score, score, signal_label,
+             int(confidence), convergence_count,
+             result['stat_analysis']['bollinger']['signal'] if result['stat_analysis'] else 'neutral',
+             now, 'v5_complete : sa')
+        )
+        
+        # آلارم بر اساس کیفیت و ریسک
+        if confidence >= 80 and risk_level < 60:
+            for _ in range(5):
+                winsound.Beep(2400, 120)
+            print(f"\n🔔🔔🔔🔔🔔 EXCEPTIONAL! {SYMBOL}")
+            print(f"Score: {final_score} | Conf: {confidence:.1f}% | Risk: {risk_level:.1f}")
+            
+        elif confidence >= 75:
+            for _ in range(4):
+                winsound.Beep(2200, 150)
+            print(f"\n🔔🔔🔔🔔 EXCELLENT! {SYMBOL}")
+            print(f"Score: {final_score} | Conf: {confidence:.1f}% | Risk: {risk_level:.1f}")
+            
+        elif confidence >= 70:
+            for _ in range(3):
+                winsound.Beep(2000, 200)
+            print(f"\n🔔🔔🔔 VERY GOOD! {SYMBOL}")
+            print(f"Score: {final_score} | Conf: {confidence:.1f}% | Risk: {risk_level:.1f}")
+            
+        elif confidence >= 65:
+            for _ in range(2):
+                winsound.Beep(1600, 250)
+            print(f"\n🔔🔔 GOOD! {SYMBOL}")
+            print(f"Score: {final_score} | Conf: {confidence:.1f}% | Risk: {risk_level:.1f}")
+        else:
+            winsound.Beep(1200, 300)
+            print(f"\n🔔 Signal: {SYMBOL}")
+            print(f"Score: {final_score} | Conf: {confidence:.1f}% | Risk: {risk_level:.1f}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ Error saving signal: {e}")
+        return False
 
 
 def calculate_advanced_score_v4(cursor, symbol_id, current_price, rsi_values, rsi_trends, rsi_changes):
