@@ -19,9 +19,12 @@ last_rsi = None
 last_best_C = ""
 tz_tehran = pytz.timezone("Asia/Tehran")
 
-exchange = ccxt.bybit({
+exchange = ccxt.bitget({
     'options': {'defaultType': 'future'}
 })
+# exchange = ccxt.bybit({
+#     'options': {'defaultType': 'future'}
+# })
 
 TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h"]
 rsi_values = {}
@@ -35,6 +38,7 @@ def clear_console():
     # For macOS and Linux
     else:
         os.system('clear')
+    
 
 def get_active_symbols():
     conn = sqlite3.connect("data.db")
