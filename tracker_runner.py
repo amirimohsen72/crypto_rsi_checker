@@ -191,7 +191,9 @@ def compare_methods():
         'v5_complete : sa',      # V5
         'v4_patterns: PR' ,     # V4
         'v5_fixed',      # V5
-        'v5_complete'      # V5
+        'v5_complete',      # V5
+        'v6_sell_only',      # V5
+        'v7_ultra'      # V5
     ]
     
     results = []

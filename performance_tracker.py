@@ -219,10 +219,14 @@ def track_old_signals(cursor, hours_ago=24, batch_size=500):
             )
             tracked_count += 1
             # نمایش progress
-
+            ch = result['changes'].get('1h', 'N/A')
+            if (ch == None) :
+                ch = "N/A"
+            else :
+                ch = f"{ch:+.2f}%"
             if tracked_count % 50 == 0:
                 print(f"   Progress: {tracked_count}/{len(old_signals)} ({(tracked_count/len(old_signals)*100):.1f}%)")
-            print(f"✅ Tracked: {symbol_name} | Entry: ${price} | 1h: {result['changes'].get('1h', 'N/A'):+.2f}% | time:{time_str} ")
+            print(f"✅ Tracked: {symbol_name} | Entry: ${price} | 1h: {ch} | time:{time_str} ")
             
         except Exception as e:
             failed_count += 1

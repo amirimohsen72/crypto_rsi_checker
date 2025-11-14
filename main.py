@@ -382,6 +382,10 @@ def run_fetcher_loop():
         cursor, symbol_id, SYMBOL, last_price,
         rsi_values, rsi_trends, rsi_changes, score
     )
+                    
+                    scoring.save_signals_v6_sell_only(cursor, symbol_id, SYMBOL, last_price,rsi_values, rsi_trends, rsi_changes, score)  # testmode: v6_sell_only
+                    scoring.save_signals_v7_ultra_premium(cursor, symbol_id, SYMBOL, last_price,rsi_values, rsi_trends, rsi_changes, score)  # testmode: v7_ultra
+
                     conn.commit()
 
             except Exception as e:
